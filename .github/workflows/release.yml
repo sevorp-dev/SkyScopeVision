@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.x
+
+      - name: Publish self-contained
+        run: |
+          dotnet publish src/SkyScope/SkyScope.csproj -c Release -r win-x64 `
+            --self-contained true -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+
+      - name: Pack archive
+        run: |
+          Compress-Archive -Path publish\SkyScope.exe -DestinationPath SkyScope-win-x64.zip
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" SkyScope-win-x64.zip `
+            --title "SkyScope ${{ github.ref_name }}" --generate-notes

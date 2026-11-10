@@ -1,0 +1,10 @@
+bin/
+obj/
+publish/
+out/
+*.user
+.vs/
+*.suo
+docs/screenshots/
+Thumbs.db
+.DS_Store

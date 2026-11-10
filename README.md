@@ -1,0 +1,123 @@
+<div align="center">
+  <img src="docs/banner.png" alt="SkyScope" width="100%">
+
+  <h1>SkyScope</h1>
+
+  <p><strong>Увеличение центра экрана для игр.</strong></p>
+
+  <p>
+    Бесплатная экранная лупа-прицел для Windows с открытым исходным кодом.<br>
+    Зона захвата — центр экрана, как у настоящего прицела. А вывод — где удобно тебе.
+  </p>
+
+  <p>
+    <a href="https://github.com/sevorp-dev/SkyScopeVision/releases/latest"><img src="https://img.shields.io/github/v/release/sevorp-dev/SkyScopeVision?style=for-the-badge&label=Скачать&color=F28C38" alt="Download"></a>
+    <img src="https://img.shields.io/badge/Windows-10%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
+    <img src="https://img.shields.io/badge/.NET-9-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 9">
+    <a href="LICENSE"><img src="https://img.shields.io/badge/Лицензия-Apache%202.0-blue?style=for-the-badge" alt="Apache 2.0"></a>
+  </p>
+
+  <p>
+    <a href="#-установка">Установка</a> ·
+    <a href="#-возможности">Возможности</a> ·
+    <a href="#-горячие-клавиши">Горячие клавиши</a> ·
+    <a href="#-сборка-из-исходников">Сборка</a> ·
+    <a href="https://github.com/sevorp-dev/SkyScopeVision/issues">Сообщить о проблеме</a>
+  </p>
+</div>
+
+---
+
+## ✨ О SkyScope
+
+**SkyScope** показывает увеличенную картинку из **центра экрана** — туда, где в шутере
+смотрит прицел. Окно с зумом можно поставить **в любое место экрана**: по центру, сверху,
+снизу, слева, справа — или перетащить мышкой куда захочешь.
+
+Работает поверх любых игр и приложений без вмешательства в их файлы: рендер увеличения
+делает сам Windows (Magnification API), поэтому нагрузка на систему практически нулевая,
+а картинка — плавная.
+
+## 🚀 Возможности
+
+| | |
+|---|---|
+| 🔭 **Лупа-прицел** | Зона захвата — всегда центр монитора. Зум до 10× |
+| 📐 **Формы прицела** | Круг, квадрат, прямоугольник, скруглённый квадрат |
+| 📍 **Позиционирование** | Центр / верх / низ / лево / право + свободное перетаскивание окна мышкой |
+| 🎮 **Горячие клавиши** | Переключение, зум +/−, сброс — всё переназначается |
+| 👤 **Профили** | Наборы настроек под разные игры, переключение в один клик |
+| 🎨 **Оформление** | Цвет, толщина и прозрачность рамки, перекрестие, затемнение фона |
+| 🧈 **Плавный зум** | Анимированные переходы между уровнями увеличения |
+| 🖥️ **Мульти-монитор** | Прицел следует за курсором на другой экран |
+| 👁️ **Stream-proof** | Оверлей не попадает в записи и стримы (OBS, Discord) |
+| ♿ **Доступность** | Увеличивай мелкий текст и элементы интерфейса в любых приложениях |
+| 🌙 **Тёмная тема** | Тёмный интерфейс с оранжевым акцентом |
+
+## 📥 Установка
+
+Скачай `SkyScope.exe` со [страницы релизов](https://github.com/sevorp-dev/SkyScopeVision/releases/latest) —
+это один самодостаточный файл, установка не нужна. Положи куда удобно и запусти.
+
+> **Совет:** в играх используй **оконный режим без рамок** (borderless) — так оверлей
+> будет виден поверх игры. В эксклюзивном полноэкранном режиме ни одно приложение
+> не может рисовать поверх игры.
+
+## ⌨ Горячие клавиши по умолчанию
+
+| Действие | Комбинация |
+| --- | --- |
+| Глобальное переключение | `Ctrl + Shift + Z` |
+| Увеличить зум | `Ctrl + T` |
+| Уменьшить зум | `Ctrl + G` |
+| Сбросить зум | `Ctrl + R` |
+
+Все комбинации меняются в настройках (Главная → Управление).
+
+## 🛠 Сборка из исходников
+
+Нужен [.NET 9 SDK](https://dotnet.microsoft.com/download).
+
+```bash
+git clone https://github.com/sevorp-dev/SkyScopeVision.git
+cd SkyScopeVision
+
+dotnet build          # отладочная сборка
+dotnet publish src/SkyScope/SkyScope.csproj -c Release -r win-x64 `
+  --self-contained true -p:PublishSingleFile=true `
+  -p:IncludeNativeLibrariesForSelfExtract=true -o publish   # релизный exe
+```
+
+## 🗺 Дорожная карта
+
+- [x] Лупа центра экрана с зумом (Magnification API)
+- [x] Формы: круг / квадрат / прямоугольник / скруглённый
+- [x] Позиционирование: пресеты + ручное перетаскивание
+- [x] Профили, горячие клавиши, автозапуск, трей
+- [x] Stream-proof (исключение из захвата)
+- [ ] Автообновления в приложении
+- [ ] Отдельный выбор зоны захвата (не только центр)
+- [ ] Цветокоррекция и фильтры (инверсия, контраст)
+
+## 🤝 Участие
+
+Баг-репорты и идеи — в [Issues](https://github.com/sevorp-dev/SkyScopeVision/issues),
+пул-реквесты — приветствуются.
+
+## 👨‍💻 Автор
+
+Разработано **[Sevorp](https://github.com/sevorp-dev)** · **SkyLoft Studio 🌥**
+
+- Telegram: [@SkyLoft_Studio](https://t.me/SkyLoft_Studio)
+- GitHub: [sevorp-dev](https://github.com/sevorp-dev)
+
+## 📄 Лицензия
+
+[Apache License 2.0](LICENSE) — используй, изучай и улучшай свободно.
+
+---
+
+<div align="center">
+  <strong>SkyScope</strong> — видь то, что другие не заметят.<br>
+  <sub>Made with ❤️ by SkyLoft Studio</sub>
+</div>

@@ -1,0 +1,495 @@
+<Window x:Class="SkyScope.Ui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SkyScope.Ui"
+        Title="SkyScope"
+        Width="1120" Height="720"
+        MinWidth="940" MinHeight="620"
+        WindowStyle="None"
+        Background="{StaticResource BgBrush}"
+        ResizeMode="CanResize"
+        FontFamily="Segoe UI"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Ideal"
+        SourceInitialized="Window_SourceInitialized">
+
+    <Grid>
+        <Grid.RowDefinitions>            <RowDefinition Height="46"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Titlebar -->
+        <Border Grid.Row="0" Background="{StaticResource SidebarBrush}"
+                BorderBrush="{StaticResource SoftBorderBrush}" BorderThickness="0,0,0,1"
+                MouseLeftButtonDown="TitleBar_MouseDown">
+            <Grid Margin="14,0,6,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Grid Width="22" Height="22" Margin="0,0,9,0">
+                        <Ellipse Stroke="#FF7D1F" StrokeThickness="1.8"/>
+                        <Path Stroke="#FF7D1F" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              Data="M11 1.5 V4.5 M11 17.5 V20.5 M1.5 11 H4.5 M17.5 11 H20.5"/>
+                        <Ellipse Width="3.2" Height="3.2" Fill="#FF7D1F"/>
+                    </Grid>
+                    <TextBlock FontWeight="Bold" FontSize="14.5" VerticalAlignment="Center">
+                        <Run Text="Sky"/><Run Text="Scope" Foreground="{StaticResource AccentBrush}"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <ToggleButton x:Name="OverlaySwitch" Checked="OverlaySwitch_Changed" Unchecked="OverlaySwitch_Changed"
+                                  ToolTip="Глобальное переключение прицела" BorderThickness="0" Background="Transparent">
+                        <ToggleButton.Template>
+                            <ControlTemplate TargetType="ToggleButton">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
+                                    <TextBlock x:Name="Lbl" Text="ВЫКЛ" VerticalAlignment="Center" Margin="0,0,8,0"
+                                               FontWeight="Bold" FontSize="12" Foreground="{StaticResource MutedBrush}"/>
+                                    <Border x:Name="Track" Width="34" Height="18" CornerRadius="9" Background="#FF2C2C33">
+                                        <Ellipse x:Name="Thumb" Width="14" Height="14" Fill="White" Margin="2,0,0,0"
+                                                 HorizontalAlignment="Left"/>
+                                    </Border>
+                                </StackPanel>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="Lbl" Property="Text" Value="ВКЛ"/>
+                                        <Setter TargetName="Lbl" Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                        <Setter TargetName="Track" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                        <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                        <Setter TargetName="Thumb" Property="Margin" Value="0,0,2,0"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </ToggleButton.Template>
+                    </ToggleButton>
+
+                    <Button Style="{StaticResource TitlebarButton}" Click="Minimize_Click" ToolTip="Свернуть">
+                        <Path Data="M0,5 H10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                              StrokeThickness="1.4" Width="10" Height="10" Stretch="Uniform"/>
+                    </Button>
+                    <Button Style="{StaticResource TitlebarButton}" Click="Maximize_Click" ToolTip="Развернуть">
+                        <Rectangle Width="10" Height="10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                   StrokeThickness="1.4"/>
+                    </Button>
+                    <Button Style="{StaticResource TitlebarButton}" Click="Close_Click" ToolTip="Закрыть" x:Name="CloseBtn">
+                        <Path Data="M1,1 L9,9 M9,1 L1,9" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                              StrokeThickness="1.4" Width="10" Height="10" Stretch="Uniform"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="230"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Sidebar -->
+            <Border Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource SoftBorderBrush}"
+                    BorderThickness="0,0,1,0" Padding="10,14">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="МЕНЮ" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}"
+                               Margin="12,4,0,10" Opacity="0.8"/>
+
+                    <StackPanel Grid.Row="1">
+                        <Button Style="{StaticResource SidebarButton}" Tag="active" Click="Nav_Click" x:Name="NavHome">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Width="19" Height="19" Stretch="Uniform" Margin="0,0,12,0"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      Data="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/>
+                                <TextBlock Text="Главная" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource SidebarButton}" Click="Nav_Click" x:Name="NavScope">
+                            <StackPanel Orientation="Horizontal">
+                                <Grid Width="19" Height="19" Margin="0,0,12,0">
+                                    <Ellipse Fill="Transparent" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.6"/>
+                                    <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.6"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                          Data="M9.5 0 V5 M9.5 14 V19 M0 9.5 H5 M14 9.5 H19" Margin="-2"/>
+                                </Grid>
+                                <TextBlock Text="Настройка" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource SidebarButton}" Click="Nav_Click" x:Name="NavApp">
+                            <StackPanel Orientation="Horizontal">
+                                <Grid Width="19" Height="19" Margin="0,0,12,0">
+                                    <Ellipse Fill="Transparent" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5"/>
+                                    <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                          Data="M9.5 3 V5.5 M9.5 13.5 V16 M3 9.5 H5.5 M13.5 9.5 H16"/>
+                                </Grid>
+                                <TextBlock Text="Настройки" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource SidebarButton}" Click="Nav_Click" x:Name="NavHelp">
+                            <StackPanel Orientation="Horizontal">
+                                <Grid Width="19" Height="19" Margin="0,0,12,0">
+                                    <Ellipse Fill="Transparent" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5"/>
+                                    <Ellipse Width="3" Height="3" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" VerticalAlignment="Bottom" Margin="0,0,0,3.5"/>
+                                    <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                          Data="M6.2 6.6 A3 3 0 1 1 9.5 12.2 V13"/>
+                                </Grid>
+                                <TextBlock Text="Помощь" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <Button Grid.Row="3" Style="{StaticResource SidebarButton}" Click="GitHub_Click" Margin="2,8,2,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Width="19" Height="19" Stretch="Uniform" Margin="0,0,12,0"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  Data="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.1-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.1.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.56 9.56 0 0 1 5 0c1.91-1.3 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.6 1.03 2.69 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85V21c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/>
+                            <TextBlock Text="GitHub" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Pages -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="26,26,30,40">
+                <StackPanel>
+
+                    <!-- ГЛАВНАЯ -->
+                    <StackPanel x:Name="PageHome">
+                        <TextBlock Style="{StaticResource PageTitle}" Text="Главная"/>
+                        <TextBlock Style="{StaticResource PageSub}" Text="Профили и управление SkyScope"/>
+
+                        <StackPanel Orientation="Horizontal" x:Name="ProfilesPanel" Margin="0,0,0,18"/>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource CardTitle}" Text="⌨ УПРАВЛЕНИЕ"/>
+                                <Grid x:Name="HotkeysGrid">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                </Grid>
+                                <TextBlock Text="Нажми на клавишу, чтобы изменить комбинацию. Требуется хотя бы один модификатор (Ctrl / Alt / Shift)."
+                                           Foreground="{StaticResource MutedBrush}" FontSize="12.5" Margin="0,14,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource CardTitle}" Text="🔍 БЫСТРЫЙ ЗУМ"/>
+                                <Border Style="{StaticResource FieldRow}">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource FieldName}" Text="Уровень зума активного профиля"/>
+                                            <TextBlock Style="{StaticResource FieldDesc}" Text="Изменяется также клавишами «Увеличить/уменьшить зум»"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Slider x:Name="HomeZoomSlider" Style="{StaticResource SkySlider}"
+                                                    Minimum="1.25" Maximum="8" SmallChange="0.25" LargeChange="0.25"
+                                                    ValueChanged="HomeZoom_Changed"/>
+                                            <TextBlock x:Name="HomeZoomValue" Width="52" TextAlignment="Right"
+                                                       Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center" Margin="12,0,0,0" Text="2.00×"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <Border Style="{StaticResource FieldRow}" BorderThickness="0">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource FieldName}" Text="Сбросить профиль"/>
+                                            <TextBlock x:Name="ResetProfileDesc" Style="{StaticResource FieldDesc}" Text="Вернуть заводские значения"/>
+                                        </StackPanel>
+                                        <Button Style="{StaticResource DangerButton}" Content="Сбросить"
+                                                HorizontalAlignment="Right" Click="ResetProfile_Click"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- НАСТРОЙКА ПРОФИЛЯ -->
+                    <StackPanel x:Name="PageScope" Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource PageTitle}" Text="Настройка"/>
+                        <TextBlock x:Name="ScopeSub" Style="{StaticResource PageSub}" Text="Параметры активного профиля"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,22">
+                            <Button Style="{StaticResource TabButton}" Tag="active" Click="Tab_Click" x:Name="TabZoom" Content="Зум"/>
+                            <Button Style="{StaticResource TabButton}" Click="Tab_Click" x:Name="TabLook" Content="Оформление"/>
+                            <Button Style="{StaticResource TabButton}" Click="Tab_Click" x:Name="TabAccess" Content="Специальные возможности"/>
+                            <Border BorderBrush="{StaticResource SoftBorderBrush}" BorderThickness="0,0,0,1" HorizontalAlignment="Stretch" VerticalAlignment="Bottom"/>
+                        </StackPanel>
+
+                        <!-- Вкладка: Зум -->
+                        <StackPanel x:Name="PanelZoom">
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <local:SliderField x:Name="F_ZoomLevel" Label="Уровень зума" Desc="Кратность увеличения области вокруг курсора"
+                                                       Minimum="1.25" Maximum="8" Step="0.25" Suffix="×" Decimals="2" ValueChanged="ProfileZoom_Changed"/>
+                                    <local:SliderField x:Name="F_ZoomStep" Label="Шаг зума" Desc="Насколько изменяется зум клавишами увеличения/уменьшения"
+                                                       Minimum="0.25" Maximum="2" Step="0.25" Suffix="×" Decimals="2" ValueChanged="ProfileZoom_Changed"/>
+                                    <local:SliderField x:Name="F_ZoomMin" Label="Минимальный зум" Desc="Нижняя граница увеличения"
+                                                       Minimum="1.25" Maximum="4" Step="0.25" Suffix="×" Decimals="2" ValueChanged="ProfileZoom_Changed"/>
+                                    <local:SliderField x:Name="F_ZoomMax" Label="Максимальный зум" Desc="Верхняя граница увеличения"
+                                                       Minimum="4" Maximum="10" Step="0.5" Suffix="×" Decimals="1" ValueChanged="ProfileZoom_Changed"/>
+                                    <Border Style="{StaticResource FieldRow}">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Плавный зум"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Плавные переходы между уровнями увеличения"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="T_ZoomSmooth" Style="{StaticResource SkyToggle}"
+                                                          HorizontalAlignment="Right" Checked="ProfileZoomToggle_Changed" Unchecked="ProfileZoomToggle_Changed"/>
+                                        </Grid>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldRow}" BorderThickness="0">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Индикатор зума"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Показывать текущую кратность внутри прицела"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="T_ZoomBadge" Style="{StaticResource SkyToggle}"
+                                                          HorizontalAlignment="Right" Checked="ProfileZoomToggle_Changed" Unchecked="ProfileZoomToggle_Changed"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Вкладка: Оформление -->
+                        <StackPanel x:Name="PanelLook" Visibility="Collapsed">
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource CardTitle}" Text="ОФОРМЛЕНИЕ ПРИЦЕЛА"/>
+                                    <Border Style="{StaticResource FieldRow}">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Форма"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Форма области увеличения"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" x:Name="ShapeSeg">
+                                                <Button Style="{StaticResource ActionButton}" Content="Круг" Margin="0,0,6,0" Click="ShapeCircle_Click"/>
+                                                <Button Style="{StaticResource ActionButton}" Content="Квадрат" Margin="0,0,6,0" Click="ShapeSquare_Click"/>
+                                                <Button Style="{StaticResource ActionButton}" Content="Прямоуг." Margin="0,0,6,0" Click="ShapeRectangle_Click"/>
+                                                <Button Style="{StaticResource ActionButton}" Content="Скругл." Click="ShapeRounded_Click"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldRow}">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Расположение на экране"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Куда выводить увеличенную картинку (зона захвата — центр)"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" x:Name="PosSeg">
+                                                <Button Style="{StaticResource ActionButton}" Content="Центр" Margin="0,0,6,0" Click="PosCenter_Click"/>
+                                                <Button Style="{StaticResource ActionButton}" Content="Сверху" Margin="0,0,6,0" Click="PosTop_Click"/>
+                                                <Button Style="{StaticResource ActionButton}" Content="Снизу" Margin="0,0,6,0" Click="PosBottom_Click"/>
+                                                <Button Style="{StaticResource ActionButton}" Content="Слева" Margin="0,0,6,0" Click="PosLeft_Click"/>
+                                                <Button Style="{StaticResource ActionButton}" Content="Справа" Margin="0,0,6,0" Click="PosRight_Click"/>
+                                                <Button Style="{StaticResource ActionButton}" Content="✥" ToolTip="Переместить вручную" Click="PosCustom_Click"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldRow}">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Ручное размещение"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Перетаскивай окно прицела мышкой в любом месте экрана"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="T_MoveMode" Style="{StaticResource SkyToggle}"
+                                                          HorizontalAlignment="Right"
+                                                          Checked="MoveMode_Changed" Unchecked="MoveMode_Changed"/>
+                                        </Grid>
+                                    </Border>
+                                    <local:SliderField x:Name="F_Radius" Label="Размер прицела" Desc="Радиус области увеличения в пикселях"
+                                                       Minimum="60" Maximum="400" Step="10" Suffix=" px" Decimals="0" ValueChanged="ProfileScope_Changed"/>
+                                    <Border Style="{StaticResource FieldRow}">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Цвет рамки и перекрестия"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Акцентный цвет прицела"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" x:Name="ColorSwatches"/>
+                                        </Grid>
+                                    </Border>
+                                    <local:SliderField x:Name="F_BorderWidth" Label="Толщина рамки" Desc="Ширина обводки области увеличения"
+                                                       Minimum="0" Maximum="10" Step="1" Suffix=" px" Decimals="0" ValueChanged="ProfileScope_Changed"/>
+                                    <local:SliderField x:Name="F_BorderOpacity" Label="Непрозрачность рамки" Desc="Прозрачность обводки и перекрестия"
+                                                       Minimum="0.1" Maximum="1" Step="0.05" Suffix="%" Decimals="0" Scale="100" ValueChanged="ProfileScope_Changed"/>
+                                    <Border Style="{StaticResource FieldRow}">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Перекрестие"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Линии прицела и точка в центре"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="T_Reticle" Style="{StaticResource SkyToggle}"
+                                                          HorizontalAlignment="Right" Checked="ProfileScopeToggle_Changed" Unchecked="ProfileScopeToggle_Changed"/>
+                                        </Grid>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldRow}">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Затемнение фона"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Затемнять экран вокруг прицела"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="T_Dim" Style="{StaticResource SkyToggle}"
+                                                          HorizontalAlignment="Right" Checked="ProfileScopeToggle_Changed" Unchecked="ProfileScopeToggle_Changed"/>
+                                        </Grid>
+                                    </Border>
+                                    <local:SliderField x:Name="F_DimOpacity" Label="Степень затемнения" Desc="Насколько темным будет фон за прицелом"
+                                                       Minimum="0.1" Maximum="0.9" Step="0.05" Suffix="%" Decimals="0" Scale="100" ValueChanged="ProfileScope_Changed"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Вкладка: Доступность -->
+                        <StackPanel x:Name="PanelAccess" Visibility="Collapsed">
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource CardTitle}" Text="СПЕЦИАЛЬНЫЕ ВОЗМОЖНОСТИ"/>
+                                    <Border Style="{StaticResource FieldRow}">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Контрастное перекрестие"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Белые линии с чёрной обводкой — лучше видно на светлом фоне"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="T_Contrast" Style="{StaticResource SkyToggle}"
+                                                          HorizontalAlignment="Right" Checked="ProfileAccess_Changed" Unchecked="ProfileAccess_Changed"/>
+                                        </Grid>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldRow}" BorderThickness="0">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Уменьшить анимацию"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Отключить плавные переходы зума"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="T_ReduceMotion" Style="{StaticResource SkyToggle}"
+                                                          HorizontalAlignment="Right" Checked="ProfileAccess_Changed" Unchecked="ProfileAccess_Changed"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- НАСТРОЙКИ ПРИЛОЖЕНИЯ -->
+                    <StackPanel x:Name="PageApp" Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource PageTitle}" Text="Настройки"/>
+                        <TextBlock Style="{StaticResource PageSub}" Text="Поведение приложения"/>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource CardTitle}" Text="ЗАПУСК"/>
+                                <Border Style="{StaticResource FieldRow}">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource FieldName}" Text="Запускать вместе с Windows"/>
+                                            <TextBlock Style="{StaticResource FieldDesc}" Text="SkyScope стартует свёрнутым в трей"/>
+                                        </StackPanel>
+                                        <ToggleButton x:Name="T_Autostart" Style="{StaticResource SkyToggle}"
+                                                      HorizontalAlignment="Right" Checked="AppToggle_Changed" Unchecked="AppToggle_Changed"/>
+                                    </Grid>
+                                </Border>
+                                <Border Style="{StaticResource FieldRow}" BorderThickness="0">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource FieldName}" Text="Иконка в трее"/>
+                                            <TextBlock Style="{StaticResource FieldDesc}" Text="Показывать значок рядом с часами (требуется перезапуск)"/>
+                                        </StackPanel>
+                                        <ToggleButton x:Name="T_Tray" Style="{StaticResource SkyToggle}"
+                                                      HorizontalAlignment="Right" Checked="AppToggle_Changed" Unchecked="AppToggle_Changed"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource CardTitle}" Text="ЗАХВАТ ЭКРАНА"/>
+                                <Border Style="{StaticResource FieldRow}" BorderThickness="0">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource FieldName}" Text="Частота кадров захвата"/>
+                                            <TextBlock Style="{StaticResource FieldDesc}" Text="30 FPS заметно снижает нагрузку на слабых ПК"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" x:Name="FpsSeg">
+                                            <Button Style="{StaticResource ActionButton}" Content="30 FPS" Margin="0,0,6,0" Click="Fps30_Click"/>
+                                            <Button Style="{StaticResource ActionButton}" Content="60 FPS" Click="Fps60_Click"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource CardTitle}" Text="ДАННЫЕ"/>
+                                <Border Style="{StaticResource FieldRow}" BorderThickness="0">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource FieldName}" Text="Сбросить все настройки"/>
+                                            <TextBlock Style="{StaticResource FieldDesc}" Text="Удалить профили и вернуть заводские значения"/>
+                                        </StackPanel>
+                                        <Button Style="{StaticResource DangerButton}" Content="Сбросить всё"
+                                                HorizontalAlignment="Right" Click="ResetAll_Click"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ПОМОЩЬ -->
+                    <StackPanel x:Name="PageHelp" Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource PageTitle}" Text="Помощь"/>
+                        <TextBlock Style="{StaticResource PageSub}" Text="О SkyScope"/>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource CardTitle}" Text="ГОРЯЧИЕ КЛАВИШИ"/>
+                                <StackPanel x:Name="HelpHotkeys"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource CardTitle}" Text="О ПРИЛОЖЕНИИ"/>
+                                <TextBlock Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,0,0,14" LineHeight="22">
+                                    SkyScope — бесплатная экранная лупа-прицел с открытым исходным кодом.
+                                    Увеличивайте любую область экрана в играх и приложениях без вмешательства в их файлы.
+                                    Оверлей не попадает в захват экрана — он виден только вам.
+                                </TextBlock>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock>
+                                        <Hyperlink NavigateUri="https://github.com/sevorp-dev/SkyScopeVision/releases" RequestNavigate="Link_Click">Страница релизов</Hyperlink>
+                                         ·
+                                        <Hyperlink NavigateUri="https://github.com/sevorp-dev/SkyScopeVision/issues" RequestNavigate="Link_Click">Сообщить о проблеме</Hyperlink>
+                                         ·
+                                        <Hyperlink NavigateUri="https://github.com/sevorp-dev/SkyScopeVision/blob/main/LICENSE" RequestNavigate="Link_Click">Лицензия MIT</Hyperlink>
+                                    </TextBlock>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Toast -->
+        <Border x:Name="Toast" Grid.RowSpan="2" VerticalAlignment="Bottom" Margin="0,0,0,24"
+                Background="#FF24242B" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="8" Padding="20,10" HorizontalAlignment="Center" Visibility="Collapsed">
+            <TextBlock x:Name="ToastText" FontWeight="SemiBold"/>
+        </Border>
+    </Grid>
+</Window>
