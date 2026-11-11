@@ -81,12 +81,22 @@ public partial class App : Application
     public void EnsureTray()
     {
         if (_tray is not null || !Store.Current.App.ShowTrayIcon) return;
-        _tray = new NotifyIcon
+        try
         {
-            Icon = new System.Drawing.Icon(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "icon.ico")),
-            Text = "SkyScope",
-            Visible = true,
-        };
+            using var stream = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("SkyScope.Assets.icon.ico")!;
+            _tray = new NotifyIcon
+            {
+                Icon = new System.Drawing.Icon(stream),
+                Text = "SkyScope",
+                Visible = true,
+            };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Tray unavailable: {ex.Message}");
+            return;
+        }
         _tray.DoubleClick += (_, _) => ShowMainWindow();
 
         var menu = new ContextMenuStrip();
