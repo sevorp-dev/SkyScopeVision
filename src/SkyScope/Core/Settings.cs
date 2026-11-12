@@ -74,6 +74,8 @@ public class AppSettings
     public bool RunAtStartup { get; set; }
     public bool ShowTrayIcon { get; set; } = true;
     public int CaptureFps { get; set; } = 60;
+    public bool CheckUpdates { get; set; } = true;
+    public string? SkippedRelease { get; set; }
 }
 
 public class Settings

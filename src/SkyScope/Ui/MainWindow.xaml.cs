@@ -41,6 +41,7 @@ public partial class MainWindow : Window
     private bool _suppressEvents;
     private HotkeyAction? _listeningHotkey;
     private Button? _listeningButton;
+    private ReleaseInfo? _pendingRelease;
 
     public MainWindow(SettingsStore store, OverlayService overlay, HotkeyManager hotkeys)
     {
@@ -93,6 +94,8 @@ public partial class MainWindow : Window
 
             T_Autostart.IsChecked = Autostart.IsEnabled();
             T_Tray.IsChecked = _store.Current.App.ShowTrayIcon;
+            T_CheckUpdates.IsChecked = _store.Current.App.CheckUpdates;
+            CurrentVersionDesc.Text = $"{UpdateChecker.AssemblyVersion()} · релизы публикуются на GitHub";
             UpdateFpsButtons(_store.Current.App.CaptureFps);
 
             UpdateHotkeyLabels();
@@ -643,6 +646,10 @@ public partial class MainWindow : Window
         {
             Autostart.SetEnabled(T_Autostart.IsChecked == true);
         }
+        else if (ReferenceEquals(sender, T_CheckUpdates))
+        {
+            _store.Update(s => s.App.CheckUpdates = T_CheckUpdates.IsChecked == true);
+        }
         else
         {
             _store.Update(s => s.App.ShowTrayIcon = T_Tray.IsChecked == true);
@@ -679,6 +686,58 @@ public partial class MainWindow : Window
         _hotkeys.RegisterAll(_store.Current.Hotkeys);
         Autostart.SetEnabled(false);
         ShowToast("Настройки сброшены");
+    }
+
+    // ---------- Обновления ----------
+
+    public void ShowUpdateBanner(ReleaseInfo release)
+    {
+        _pendingRelease = release;
+        UpdateVersion.Text = release.Tag;
+        UpdateBanner.Visibility = Visibility.Visible;
+    }
+
+    private async void UpdateNow_Click(object sender, RoutedEventArgs e)
+    {
+        if (_pendingRelease is null) return;
+        UpdateNow.IsEnabled = false;
+        const string idle = "Скачать и установить";
+        try
+        {
+            var progress = new Progress<double>(p => UpdateNow.Content = $"Скачивание… {p:P0}");
+            var path = await ((App)Application.Current).Updates.DownloadSetupAsync(_pendingRelease, progress);
+            if (path is null)
+            {
+                ShowToast("Установщик не найден в релизе", true);
+                UpdateNow.Content = idle;
+                UpdateNow.IsEnabled = true;
+                return;
+            }
+            UpdateChecker.LaunchInstaller(path);
+            Application.Current.Shutdown();
+        }
+        catch
+        {
+            ShowToast("Не удалось скачать обновление", true);
+            UpdateNow.Content = idle;
+            UpdateNow.IsEnabled = true;
+        }
+    }
+
+    private void UpdateSkip_Click(object sender, RoutedEventArgs e)
+    {
+        if (_pendingRelease is not null)
+            _store.Update(s => s.App.SkippedRelease = _pendingRelease.Tag);
+        UpdateBanner.Visibility = Visibility.Collapsed;
+        _pendingRelease = null;
+    }
+
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        ShowToast("Проверяю обновления…");
+        var found = await ((App)Application.Current).CheckUpdatesNow();
+        if (!found)
+            ShowToast("Обновлений нет, ты на последней версии");
     }
 
     // ---------- Toast ----------

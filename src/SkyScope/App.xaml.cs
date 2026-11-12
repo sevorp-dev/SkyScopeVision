@@ -18,9 +18,11 @@ public partial class App : Application
     public HotkeyManager Hotkeys { get; } = new();
     public OverlayService Overlay { get; private set; } = null!;
     public Ui.MainWindow? MainWindowInstance { get; private set; }
+    public UpdateChecker Updates { get; private set; } = null!;
 
     private NotifyIcon? _tray;
     private EventWaitHandle? _showEvent;
+    private ReleaseInfo? _pendingUpdate;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -34,6 +36,11 @@ public partial class App : Application
 
         base.OnStartup(e);
         ListenForShowEvent();
+
+        Updates = new UpdateChecker(Store,
+            e.Args.Contains("--update-test") ? new Version(0, 0, 1) : null);
+        Updates.UpdateFound += OnUpdateFound;
+        _ = Task.Run(UpdateLoopAsync);
         Overlay = new OverlayService(Store);
         Overlay.Error += msg => Dispatcher.Invoke(() =>
             MainWindowInstance?.ShowToast($"Ошибка захвата: {msg}"));
@@ -103,6 +110,11 @@ public partial class App : Application
             return;
         }
         _tray.DoubleClick += (_, _) => ShowMainWindow();
+        _tray.BalloonTipClicked += (_, _) =>
+        {
+            if (_pendingUpdate is not null)
+                Dispatcher.Invoke(() => StartUpdateFlow(_pendingUpdate));
+        };
 
         var menu = new ContextMenuStrip();
         var toggleItem = new ToolStripMenuItem("Включить прицел");
@@ -192,6 +204,54 @@ public partial class App : Application
             File.AppendAllText(Path.Combine(dir, "debug.log"), line);
         }
         catch { }
+    }
+
+    // ---------- Обновления ----------
+
+    private void OnUpdateFound(ReleaseInfo release)
+    {
+        _pendingUpdate = release;
+        Dispatcher.Invoke(() =>
+        {
+            if (MainWindowInstance is { IsVisible: true })
+            {
+                MainWindowInstance.ShowUpdateBanner(release);
+            }
+            else
+            {
+                EnsureTray();
+                _tray?.ShowBalloonTip(8000, "SkyScope",
+                    $"Доступна версия {release.Tag}. Нажми, чтобы скачать.", ToolTipIcon.Info);
+            }
+        });
+    }
+
+    private async Task UpdateLoopAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(4));
+        while (true)
+        {
+            if (Store.Current.App.CheckUpdates)
+                await Updates.CheckAsync();
+            await Task.Delay(TimeSpan.FromHours(6));
+        }
+    }
+
+    public async Task<bool> CheckUpdatesNow() => await Updates.CheckAsync() is not null;
+
+    // Клик по balloon: скачиваем установщик и отдаём инсталлятору (AppMutex закроет приложение)
+    public void StartUpdateFlow(ReleaseInfo release)
+    {
+        _ = Task.Run(async () =>
+        {
+            var path = await Updates.DownloadSetupAsync(release);
+            if (path is null) return;
+            await Dispatcher.InvokeAsync(() =>
+            {
+                UpdateChecker.LaunchInstaller(path);
+                Shutdown();
+            });
+        });
     }
 
     protected override void OnExit(ExitEventArgs e)
