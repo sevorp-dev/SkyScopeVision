@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """Генерация иконок SkyScope: PNG (512/32) и ICO (16..256).
 
-Рисует ретикл-прицел: оранжевое кольцо, засечки по сторонам, точка в центре
-на тёмной скруглённой плашке. Суперсэмплинг x4 для гладких краёв.
+Рисует хедшот-марк: силуэт головы и плеч, по центру головы — оранжевый
+прицел (кольцо, засечки, точка) на тёмной скруглённой плашке.
+Суперсэмплинг x4 для гладких краёв.
 """
 import math
 import os
-from PIL import Image, ImageDraw
+import shutil
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ACCENT = (255, 125, 31, 255)
 ACCENT_SOFT = (255, 125, 31, 70)
 BG_TOP = (24, 25, 30, 255)
 BG_BOTTOM = (14, 14, 17, 255)
+BUST = (68, 69, 77, 255)
 
 
 def lerp(a, b, t):
@@ -22,6 +25,7 @@ def lerp(a, b, t):
 def make_icon(size: int) -> Image.Image:
     s = size * 4  # суперсэмплинг
     img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    k = s / 512
 
     # --- фон: скруглённая плашка с вертикальным градиентом ---
     radius = int(s * 0.22)
@@ -33,11 +37,9 @@ def make_icon(size: int) -> Image.Image:
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, s - 1, s - 1], radius=radius, fill=255)
     img.paste(grad, (0, 0), mask)
 
-    d = ImageDraw.Draw(img)
-    cx = cy = s / 2
-
-    ring_r = s * 0.285
-    lw = max(2, int(s * 0.032))
+    cx, cy = s / 2, 208 * k
+    ring_r = 118 * k
+    lw = max(2, int(s * 0.035))
 
     # мягкое свечение за кольцом
     glow = Image.new("RGBA", (s, s), (0, 0, 0, 0))
@@ -47,32 +49,33 @@ def make_icon(size: int) -> Image.Image:
         outline=ACCENT_SOFT,
         width=lw * 3,
     )
-    glow = glow.filter(__import__("PIL.ImageFilter", fromlist=["GaussianBlur"]).GaussianBlur(lw * 2))
+    glow = glow.filter(ImageFilter.GaussianBlur(lw * 2))
     img.alpha_composite(glow)
     d = ImageDraw.Draw(img)
 
-    # кольцо
+    # --- силуэт: шея, плечи, голова ---
+    d.rounded_rectangle([230 * k, 264 * k, 282 * k, 316 * k], radius=14 * k, fill=BUST)
+    d.rounded_rectangle([101 * k, 292 * k, 411 * k, 502 * k], radius=105 * k, fill=BUST)
+    d.ellipse([cx - 80 * k, cy - 88 * k, cx + 80 * k, cy + 88 * k], fill=BUST)
+
+    # --- прицел поверх головы ---
     d.ellipse(
         [cx - ring_r, cy - ring_r, cx + ring_r, cy + ring_r],
         outline=ACCENT,
         width=lw,
     )
-
-    # засечки по сторонам
-    tick_in = ring_r + s * 0.045
-    tick_out = ring_r + s * 0.135
+    tick_in = ring_r + 12 * k
+    tick_out = ring_r + 50 * k
     cap = lw // 2
-    for ang in (0, 90, 180, 270):
+    for ang in (-90, 90, 180, 0):
         a = math.radians(ang)
         x1, y1 = cx + tick_in * math.cos(a), cy + tick_in * math.sin(a)
         x2, y2 = cx + tick_out * math.cos(a), cy + tick_out * math.sin(a)
         d.line([(x1, y1), (x2, y2)], fill=ACCENT, width=lw)
-        # округлые концы засечек
         for (px, py) in ((x1, y1), (x2, y2)):
             d.ellipse([px - cap, py - cap, px + cap, py + cap], fill=ACCENT)
 
-    # точка в центре
-    dot_r = s * 0.033
+    dot_r = 16 * k
     d.ellipse([cx - dot_r, cy - dot_r, cx + dot_r, cy + dot_r], fill=ACCENT)
 
     return img.resize((size, size), Image.LANCZOS)
@@ -81,8 +84,10 @@ def make_icon(size: int) -> Image.Image:
 def main():
     assets = os.path.join(ROOT, "assets")
     build = os.path.join(ROOT, "build")
+    app_assets = os.path.join(ROOT, "src", "SkyScope", "Assets")
     os.makedirs(assets, exist_ok=True)
     os.makedirs(build, exist_ok=True)
+    os.makedirs(app_assets, exist_ok=True)
 
     icon512 = make_icon(512)
     icon512.save(os.path.join(assets, "icon.png"))
@@ -97,6 +102,10 @@ def main():
         sizes=[(s, s) for s in sizes],
     )
     icon512.save(os.path.join(build, "icon.png"))
+
+    # встроенные ресурсы приложения
+    shutil.copyfile(os.path.join(build, "icon.ico"), os.path.join(app_assets, "icon.ico"))
+    shutil.copyfile(os.path.join(assets, "icon.png"), os.path.join(app_assets, "icon.png"))
     print("icons written:", os.listdir(assets), os.listdir(build))
 
 

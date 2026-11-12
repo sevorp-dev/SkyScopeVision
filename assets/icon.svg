@@ -4,14 +4,21 @@
       <stop offset="0" stop-color="#18191e"/>
       <stop offset="1" stop-color="#0e0e11"/>
     </linearGradient>
+    <linearGradient id="bust" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a4b53"/>
+      <stop offset="1" stop-color="#33343b"/>
+    </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <circle cx="256" cy="256" r="146" fill="none" stroke="#ff7d1f" stroke-width="16"/>
-  <g stroke="#ff7d1f" stroke-width="16" stroke-linecap="round">
-    <line x1="256" y1="150" x2="256" y2="194"/>
-    <line x1="256" y1="318" x2="256" y2="362"/>
-    <line x1="150" y1="256" x2="194" y2="256"/>
-    <line x1="318" y1="256" x2="362" y2="256"/>
+  <rect x="230" y="264" width="52" height="52" rx="14" fill="url(#bust)"/>
+  <rect x="101" y="292" width="310" height="210" rx="105" fill="url(#bust)"/>
+  <ellipse cx="256" cy="208" rx="80" ry="88" fill="url(#bust)"/>
+  <circle cx="256" cy="208" r="118" fill="none" stroke="#ff7d1f" stroke-width="18"/>
+  <g stroke="#ff7d1f" stroke-width="18" stroke-linecap="round">
+    <line x1="256" y1="90" x2="256" y2="52"/>
+    <line x1="256" y1="326" x2="256" y2="364"/>
+    <line x1="138" y1="208" x2="100" y2="208"/>
+    <line x1="374" y1="208" x2="412" y2="208"/>
   </g>
-  <circle cx="256" cy="256" r="17" fill="#ff7d1f"/>
+  <circle cx="256" cy="208" r="16" fill="#ff7d1f"/>
 </svg>
