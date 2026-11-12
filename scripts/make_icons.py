@@ -81,6 +81,48 @@ def make_icon(size: int) -> Image.Image:
     return img.resize((size, size), Image.LANCZOS)
 
 
+def make_settings_icon(size: int) -> Image.Image:
+    s = size * 4
+    img = make_base_plate(s)
+    k = s / 512
+
+    # зубья: каждый на своём слое, поворот вокруг центра
+    for ang in range(0, 360, 45):
+        tooth = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+        ImageDraw.Draw(tooth).rounded_rectangle(
+            [230 * k, 88 * k, 282 * k, 152 * k], radius=12 * k, fill=ACCENT)
+        tooth = tooth.rotate(ang, resample=Image.BICUBIC, center=(s / 2, s / 2))
+        img = Image.alpha_composite(img, tooth)
+
+    d = ImageDraw.Draw(img)
+    ring_r = 104 * k
+    lw = int(54 * k)
+    d.ellipse(
+        [s / 2 - ring_r, s / 2 - ring_r, s / 2 + ring_r, s / 2 + ring_r],
+        outline=ACCENT,
+        width=lw,
+    )
+    hole_r = 56 * k
+    d.ellipse(
+        [s / 2 - hole_r, s / 2 - hole_r, s / 2 + hole_r, s / 2 + hole_r],
+        fill=(14, 14, 17, 255),
+    )
+    return img.resize((size, size), Image.LANCZOS)
+
+
+def make_base_plate(s: int) -> Image.Image:
+    img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    radius = int(s * 0.22)
+    grad = Image.new("RGBA", (s, s))
+    gd = ImageDraw.Draw(grad)
+    for y in range(s):
+        gd.line([(0, y), (s, y)], fill=lerp(BG_TOP, BG_BOTTOM, y / s))
+    mask = Image.new("L", (s, s), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, s - 1, s - 1], radius=radius, fill=255)
+    img.paste(grad, (0, 0), mask)
+    return img
+
+
 def main():
     assets = os.path.join(ROOT, "assets")
     build = os.path.join(ROOT, "build")
@@ -94,6 +136,8 @@ def main():
 
     tray = make_icon(32)
     tray.save(os.path.join(assets, "tray.png"))
+
+    make_settings_icon(512).save(os.path.join(assets, "icon-settings.png"))
 
     # ICO с набором размеров
     sizes = [16, 24, 32, 48, 64, 128, 256]
