@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.IO;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Interop;
@@ -11,6 +12,7 @@ namespace SkyScope;
 public partial class App : Application
 {
     private const string MutexName = "SkyScope_SingleInstance_Mutex";
+    private const string ShowEventName = "SkyScope_ShowWindow_Event";
 
     public SettingsStore Store { get; } = new();
     public HotkeyManager Hotkeys { get; } = new();
@@ -18,6 +20,7 @@ public partial class App : Application
     public Ui.MainWindow? MainWindowInstance { get; private set; }
 
     private NotifyIcon? _tray;
+    private EventWaitHandle? _showEvent;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -30,6 +33,7 @@ public partial class App : Application
         }
 
         base.OnStartup(e);
+        ListenForShowEvent();
         Overlay = new OverlayService(Store);
         Overlay.Error += msg => Dispatcher.Invoke(() =>
             MainWindowInstance?.ShowToast($"Ошибка захвата: {msg}"));
@@ -73,6 +77,8 @@ public partial class App : Application
             MainWindowInstance.Show();
             MainWindowInstance.WindowState = WindowState.Normal;
             MainWindowInstance.Activate();
+            MainWindowInstance.Topmost = true;
+            MainWindowInstance.Topmost = false;
         }
         EnsureTray();
     }
@@ -147,13 +153,45 @@ public partial class App : Application
 
     private void ActivateExistingInstance()
     {
-        Native.NativeMethods.EnumWindows((hwnd, _) =>
+        try
         {
-            if (!Native.NativeMethods.IsWindowVisible(hwnd)) return true;
-            Native.NativeMethods.GetWindowThreadProcessId(hwnd, out var pid);
-            // Подсветить существующее окно нельзя без PID — оставляем просто выход.
-            return true;
-        }, IntPtr.Zero);
+            using var evt = EventWaitHandle.OpenExisting(ShowEventName);
+            evt.Set();
+        }
+        catch (Exception ex)
+        {
+            Log($"signal FAILED: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    // Второй запуск программы будит первый через именованное событие —
+    // окно показывается даже если было закрыто в трей.
+    private void ListenForShowEvent()
+    {
+        _showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
+        var thread = new Thread(() =>
+        {
+            while (true)
+            {
+                try { _showEvent.WaitOne(); }
+                catch { return; }
+                try { Dispatcher.Invoke(() => ShowMainWindow()); }
+                catch (Exception ex) { Log($"show-event: {ex}"); }
+            }
+        }) { IsBackground = true };
+        thread.Start();
+    }
+
+    private static void Log(string msg)
+    {
+        var line = $"[{DateTime.Now:HH:mm:ss}] {msg}{Environment.NewLine}";
+        try
+        {
+            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SkyScope");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(Path.Combine(dir, "debug.log"), line);
+        }
+        catch { }
     }
 
     protected override void OnExit(ExitEventArgs e)

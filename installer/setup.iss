@@ -30,6 +30,7 @@ SolidCompression=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 CloseApplications=yes
+AppMutex={#MyAppName}_SingleInstance_Mutex
 MinVersion=10.0
 
 [Languages]
