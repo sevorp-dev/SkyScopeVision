@@ -83,14 +83,12 @@ public partial class MainWindow : Window
             F_BorderWidth.SetValueSilently(profile.Scope.BorderWidth);
             F_BorderOpacity.SetValueSilently(profile.Scope.BorderOpacity);
             F_DimOpacity.SetValueSilently(profile.Scope.DimOpacity);
-            T_Reticle.IsChecked = profile.Scope.Reticle;
             T_Dim.IsChecked = profile.Scope.DimOutside;
             UpdateShapeButtons(profile.Scope.Shape);
             UpdatePositionButtons(profile.Scope.Position);
             UpdateColorSwatches(profile.Scope.BorderColor);
             T_MoveMode.IsChecked = _overlay.MoveMode;
 
-            T_Contrast.IsChecked = profile.Accessibility.HighContrastReticle;
             T_ReduceMotion.IsChecked = profile.Accessibility.ReduceMotion;
 
             T_Autostart.IsChecked = Autostart.IsEnabled();
@@ -487,7 +485,6 @@ public partial class MainWindow : Window
             scope.BorderWidth = F_BorderWidth.Value;
             scope.BorderOpacity = F_BorderOpacity.Value;
             scope.DimOpacity = F_DimOpacity.Value;
-            scope.Reticle = T_Reticle.IsChecked == true;
             scope.DimOutside = T_Dim.IsChecked == true;
         });
     }
@@ -499,7 +496,6 @@ public partial class MainWindow : Window
         if (_suppressEvents) return;
         _store.Update(s =>
         {
-            s.ActiveProfile.Accessibility.HighContrastReticle = T_Contrast.IsChecked == true;
             s.ActiveProfile.Accessibility.ReduceMotion = T_ReduceMotion.IsChecked == true;
         });
     }

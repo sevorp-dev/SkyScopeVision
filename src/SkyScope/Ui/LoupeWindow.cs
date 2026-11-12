@@ -266,7 +266,6 @@ public class LoupeWindow
         var accent = ColorTranslator.FromHtml(scope.BorderColor);
         var borderAlpha = (int)(scope.BorderOpacity * 255);
         var penColor = Color.FromArgb(borderAlpha, accent);
-        var strokeColor = profile.Accessibility.HighContrastReticle ? Color.FromArgb(borderAlpha, Color.White) : penColor;
 
         if (scope.BorderWidth > 0)
         {
@@ -286,23 +285,6 @@ public class LoupeWindow
                     g.DrawRectangle(pen, rect.X, rect.Y, rect.Width, rect.Height);
                     break;
             }
-        }
-
-        if (scope.Reticle)
-        {
-            using var pen = new Pen(strokeColor, (float)Math.Max(1.5, scope.BorderWidth * 0.6));
-            pen.StartCap = LineCap.Round;
-            pen.EndCap = LineCap.Round;
-            var cx = _winW / 2f;
-            var cy = _winH / 2f;
-            var gap = 8f;
-            var len = Math.Min(_winW, _winH) * 0.45f;
-            g.DrawLine(pen, cx, cy - gap - len, cx, cy - gap);
-            g.DrawLine(pen, cx, cy + gap, cx, cy + gap + len);
-            g.DrawLine(pen, cx - gap - len, cy, cx - gap, cy);
-            g.DrawLine(pen, cx + gap, cy, cx + gap + len, cy);
-            var dot = (float)Math.Max(2, scope.BorderWidth * 0.8);
-            g.FillEllipse(new SolidBrush(strokeColor), cx - dot, cy - dot, dot * 2, dot * 2);
         }
 
         if (scope.ShowZoomBadge)

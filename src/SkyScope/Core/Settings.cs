@@ -36,7 +36,6 @@ public class ScopeStyle
     public string BorderColor { get; set; } = "#FF7D1F";
     public double BorderWidth { get; set; } = 3;
     public double BorderOpacity { get; set; } = 1;
-    public bool Reticle { get; set; } = true;
     public bool DimOutside { get; set; }
     public double DimOpacity { get; set; } = 0.55;
     public bool ShowZoomBadge { get; set; } = true;
@@ -58,7 +57,6 @@ public class ZoomSettings
 
 public class AccessibilitySettings
 {
-    public bool HighContrastReticle { get; set; }
     public bool ReduceMotion { get; set; }
 }
 

@@ -324,23 +324,13 @@
                                     </Border>
                                     <local:SliderField x:Name="F_BorderWidth" Label="Толщина рамки" Desc="Ширина обводки области увеличения"
                                                        Minimum="0" Maximum="10" Step="1" Suffix=" px" Decimals="0" ValueChanged="ProfileScope_Changed"/>
-                                    <local:SliderField x:Name="F_BorderOpacity" Label="Непрозрачность рамки" Desc="Прозрачность обводки и перекрестия"
+                                    <local:SliderField x:Name="F_BorderOpacity" Label="Непрозрачность рамки" Desc="Прозрачность обводки лупы"
                                                        Minimum="0.1" Maximum="1" Step="0.05" Suffix="%" Decimals="0" Scale="100" ValueChanged="ProfileScope_Changed"/>
                                     <Border Style="{StaticResource FieldRow}">
                                         <Grid>
                                             <StackPanel>
-                                                <TextBlock Style="{StaticResource FieldName}" Text="Перекрестие"/>
-                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Линии прицела и точка в центре"/>
-                                            </StackPanel>
-                                            <ToggleButton x:Name="T_Reticle" Style="{StaticResource SkyToggle}"
-                                                          HorizontalAlignment="Right" Checked="ProfileScopeToggle_Changed" Unchecked="ProfileScopeToggle_Changed"/>
-                                        </Grid>
-                                    </Border>
-                                    <Border Style="{StaticResource FieldRow}">
-                                        <Grid>
-                                            <StackPanel>
                                                 <TextBlock Style="{StaticResource FieldName}" Text="Затемнение фона"/>
-                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Затемнять экран вокруг прицела"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Затемнять экран вокруг лупы"/>
                                             </StackPanel>
                                             <ToggleButton x:Name="T_Dim" Style="{StaticResource SkyToggle}"
                                                           HorizontalAlignment="Right" Checked="ProfileScopeToggle_Changed" Unchecked="ProfileScopeToggle_Changed"/>
@@ -357,16 +347,6 @@
                             <Border Style="{StaticResource Card}">
                                 <StackPanel>
                                     <TextBlock Style="{StaticResource CardTitle}" Text="СПЕЦИАЛЬНЫЕ ВОЗМОЖНОСТИ"/>
-                                    <Border Style="{StaticResource FieldRow}">
-                                        <Grid>
-                                            <StackPanel>
-                                                <TextBlock Style="{StaticResource FieldName}" Text="Контрастное перекрестие"/>
-                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Белые линии с чёрной обводкой — лучше видно на светлом фоне"/>
-                                            </StackPanel>
-                                            <ToggleButton x:Name="T_Contrast" Style="{StaticResource SkyToggle}"
-                                                          HorizontalAlignment="Right" Checked="ProfileAccess_Changed" Unchecked="ProfileAccess_Changed"/>
-                                        </Grid>
-                                    </Border>
                                     <Border Style="{StaticResource FieldRow}" BorderThickness="0">
                                         <Grid>
                                             <StackPanel>
