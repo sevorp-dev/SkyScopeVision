@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using SkyScope.Core;
@@ -6,14 +7,15 @@ using SkyScope.Native;
 namespace SkyScope.Services;
 
 /// <summary>
-/// Управляет прицелом: зона захвата — центр монитора курсора, окно вывода —
-/// по якорю профиля. Тик-таймер нужен только для плавного зума и смены монитора.
+/// Управляет лупой: зона захвата — центр монитора курсора, окно вывода —
+/// по якорю профиля. Тик нужен только для плавного зума, смены монитора
+/// и живого перерисовывания кадров.
 /// </summary>
 public class OverlayService
 {
     private readonly SettingsStore _store;
-    private Ui.OverlayWindow? _window;
-    private Ui.MagWindow? _mag;
+    private Ui.LoupeWindow? _mag;
+    private Ui.DimWindow? _dim;
     private DispatcherTimer? _timer;
     private IntPtr _monitor;
     private uint _monitorDpi = 96;
@@ -21,6 +23,7 @@ public class OverlayService
     private double _displayedZoom = -1;
     private bool _forceUpdate = true;
     private bool _storeHooked;
+    private long _lastRenderAt;
 
     public event Action<string>? Error;
     public event Action<bool>? Toggled;
@@ -32,8 +35,6 @@ public class OverlayService
         get => _mag?.MoveMode == true;
         set { if (_mag is not null) _mag.MoveMode = value; }
     }
-
-    public event Action? MoveModeChanged;
 
     public OverlayService(SettingsStore store)
     {
@@ -55,28 +56,40 @@ public class OverlayService
     {
         if (IsActive) return Task.CompletedTask;
         IsActive = true;
+        try
+        {
+            ShowCore();
+        }
+        catch (Exception ex)
+        {
+            IsActive = false;
+            Log($"SHOW FAILED: {ex}");
+            Error?.Invoke(ex.Message);
+        }
+        Toggled?.Invoke(IsActive);
+        return Task.CompletedTask;
+    }
 
+    private void ShowCore()
+    {
         if (!_storeHooked)
         {
             _storeHooked = true;
             _store.Changed += _ => _forceUpdate = true;
         }
 
-        _mag ??= new Ui.MagWindow();
-        _window ??= new Ui.OverlayWindow();
+        _mag ??= new Ui.LoupeWindow();
+        _dim ??= new Ui.DimWindow();
         _mag.Moved -= OnMagMoved;
         _mag.Moved += OnMagMoved;
         _displayedZoom = -1;
 
         RefreshMonitor();
-        _window.Show();
+        _forceUpdate = true;
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(8) };
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
-
-        Toggled?.Invoke(true);
-        return Task.CompletedTask;
     }
 
     public Task Hide()
@@ -85,11 +98,10 @@ public class OverlayService
         IsActive = false;
         _timer?.Stop();
         _timer = null;
-        _window?.Hide();
+        _dim?.Hide();
         _mag?.Dispose();
         _mag = null;
         Toggled?.Invoke(false);
-        MoveModeChanged?.Invoke();
         return Task.CompletedTask;
     }
 
@@ -114,23 +126,11 @@ public class OverlayService
             _monitorBoundsPhysical = info.rcMonitor;
         if (NativeMethods.GetDpiForMonitor(_monitor, NativeMethods.MDT_EFFECTIVE_DPI, out var dpi, out _) == 0)
             _monitorDpi = dpi;
-        var scale = _monitorDpi / 96.0;
-
-        if (_window is not null)
-        {
-            _window.SetMonitorBounds(new NativeMethods.RECT
-            {
-                Left = (int)(_monitorBoundsPhysical.Left / scale),
-                Top = (int)(_monitorBoundsPhysical.Top / scale),
-                Right = (int)(_monitorBoundsPhysical.Right / scale),
-                Bottom = (int)(_monitorBoundsPhysical.Bottom / scale),
-            });
-        }
     }
 
     private void Tick()
     {
-        if (!IsActive || _window is null || _mag is null) return;
+        if (!IsActive || _mag is null) return;
 
         NativeMethods.GetCursorPos(out var cursor);
         var monitor = NativeMethods.MonitorFromPoint(cursor, NativeMethods.MONITOR_DEFAULTTONEAREST);
@@ -144,6 +144,8 @@ public class OverlayService
         var profile = _store.Current.ActiveProfile;
         var zoom = profile.Zoom;
         var scale = _monitorDpi / 96.0;
+        var fps = Math.Clamp(_store.Current.App.CaptureFps, 15, 120);
+        var now = Environment.TickCount64;
 
         var animate = !profile.Accessibility.ReduceMotion && zoom.Smooth;
         if (animate)
@@ -158,38 +160,38 @@ public class OverlayService
         }
 
         var zoomAnimating = Math.Abs(_displayedZoom - zoom.Level) > 0.0001;
-        if (!zoomAnimating && !_forceUpdate) return;
+        if (!zoomAnimating && !_forceUpdate && now - _lastRenderAt < 1000 / fps) return;
         _forceUpdate = false;
+        _lastRenderAt = now;
 
         var cx = _monitorBoundsPhysical.Left + _monitorBoundsPhysical.Width / 2;
         var cy = _monitorBoundsPhysical.Top + _monitorBoundsPhysical.Height / 2;
 
-        var animProfile = CloneWithZoom(profile, _displayedZoom);
-        _mag.Update(cx, cy, scale, animProfile);
-        _window.EnsureAbove(_mag.Handle);
+        _mag.Update(cx, cy, scale, profile);
 
-        var (w, h) = Ui.MagWindow.WindowSize(profile.Scope, scale);
-        var chromeX = (cx - _monitorBoundsPhysical.Left) / scale;
-        var chromeY = (cy - _monitorBoundsPhysical.Top) / scale;
-        _window.UpdateChrome(chromeX, chromeY, w / scale, h / scale, profile);
+        if (profile.Scope.DimOutside)
+        {
+            _dim?.Update(_monitorBoundsPhysical, profile.Scope,
+                _mag.WindowX, _mag.WindowY, _mag.WindowW, _mag.WindowH);
+        }
+        else
+        {
+            _dim?.Hide();
+        }
+
+        _mag.Render(scale, _displayedZoom, profile);
     }
 
-    private static Profile CloneWithZoom(Profile source, double level)
+    internal static void Log(string message)
     {
-        return new Profile
+        try
         {
-            Id = source.Id,
-            Name = source.Name,
-            Scope = source.Scope,
-            Zoom = new ZoomSettings
-            {
-                Level = level,
-                Step = source.Zoom.Step,
-                Min = source.Zoom.Min,
-                Max = source.Zoom.Max,
-                Smooth = source.Zoom.Smooth,
-            },
-            Accessibility = source.Accessibility,
-        };
+            var path = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "SkyScope", "debug.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.AppendAllText(path, $"{DateTime.Now:HH:mm:ss.fff} [overlay] {message}{Environment.NewLine}");
+        }
+        catch { }
     }
 }

@@ -30,7 +30,6 @@ public partial class App : Application
         }
 
         base.OnStartup(e);
-        Ui.MagWindow.InitializeApi();
         Overlay = new OverlayService(Store);
         Overlay.Error += msg => Dispatcher.Invoke(() =>
             MainWindowInstance?.ShowToast($"Ошибка захвата: {msg}"));
