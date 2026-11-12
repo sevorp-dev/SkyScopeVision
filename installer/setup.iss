@@ -7,7 +7,7 @@
 #define MyAppExeName "SkyScope.exe"
 
 [Setup]
-AppId={{A1B2C3D4-E5F6-4A7B-8C9D-SKYSCOPE001}
+AppId={{29AA6D89-B281-414D-99F1-5CB238F2DF01}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
@@ -16,6 +16,8 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/issues
 AppUpdatesURL={#MyAppURL}/releases
 DefaultDirName={autopf}\{#MyAppName}
+UsePreviousAppDir=yes
+UninstallDisplayIcon={app}\{#MyAppExeName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=..\LICENSE
