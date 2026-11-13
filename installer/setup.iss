@@ -1,6 +1,6 @@
 #define MyAppName "SkyScope"
 #ifndef MyAppVersion
-#define MyAppVersion "1.0.2"
+#define MyAppVersion "1.0.0"
 #endif
 #define MyAppPublisher "sevorp-dev"
 #define MyAppURL "https://github.com/sevorp-dev/SkyScopeVision"
