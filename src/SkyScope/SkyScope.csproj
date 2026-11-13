@@ -9,7 +9,7 @@
     <AssemblyName>SkyScope</AssemblyName>
     <Product>SkyScope</Product>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <Version>1.0.9</Version>
+    <Version>1.0.10</Version>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Nullable>enable</Nullable>

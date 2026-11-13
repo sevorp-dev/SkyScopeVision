@@ -49,22 +49,6 @@ def draw_reticle(img, cx, cy, r, color, lw, alpha=255):
     d.ellipse([cx - dot, cy - dot, cx + dot, cy + dot], fill=c)
 
 
-def draw_bust(img, cx, head_cy, head_rx, head_ry, color):
-    d = ImageDraw.Draw(img)
-    c = color + (255,)
-    d.rounded_rectangle(
-        [cx - head_rx * 0.31, head_cy + head_ry * 0.67,
-         cx + head_rx * 0.31, head_cy + head_ry * 2.2],
-        radius=head_rx * 0.17, fill=c)
-    d.rounded_rectangle(
-        [cx - head_rx * 1.84, head_cy + head_ry * 0.95,
-         cx + head_rx * 1.84, head_cy + head_ry * 3.45],
-        radius=head_rx * 1.31, fill=c)
-    d.ellipse(
-        [cx - head_rx, head_cy - head_ry, cx + head_rx, head_cy + head_ry],
-        fill=c)
-
-
 def dot_grid(img, step, color, alpha):
     overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(overlay)
@@ -85,7 +69,6 @@ def banner():
     glow = glow.filter(ImageFilter.GaussianBlur(120))
     img.paste(Image.alpha_composite(img.convert("RGBA"), glow).convert("RGB"), (0, 0))
 
-    draw_bust(img, w - 330, h // 2, 91, 100, (68, 69, 77))
     draw_reticle(img, w - 330, h // 2, 128, ACCENT, 14)
 
     d = ImageDraw.Draw(img)
