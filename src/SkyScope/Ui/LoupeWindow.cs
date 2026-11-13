@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Runtime.InteropServices;
 using SkyScope.Core;
 using SkyScope.Native;
@@ -176,6 +177,8 @@ public class LoupeWindow
 
         ApplyShapeAlpha(scope);
         DrawChrome(profile);
+        PremultiplyFrame();
+        MaybeDumpFrame();
 
         var size = new NativeMethods.POINT { X = _winW, Y = _winH };
         var srcPoint = new NativeMethods.POINT { X = 0, Y = 0 };
@@ -191,61 +194,137 @@ public class LoupeWindow
 
     private int _ulwLogCount;
 
+    // Маска формы: кэшируется по размеру/форме, со сглаживанием края (SDF-покрытие)
+    private byte[]? _mask;
+    private int _maskW, _maskH;
+    private ScopeShape _maskShape = (ScopeShape)(-1);
+
+    public static bool DumpFrameEnabled;
+
     private unsafe void ApplyShapeAlpha(ScopeStyle scope)
     {
         if (_frameBits == IntPtr.Zero) return;
         var w = _winW;
         var h = _winH;
+        EnsureMask(w, h, scope);
+
         byte* px = (byte*)_frameBits;
-        switch (scope.Shape)
+        for (var y = 0; y < h; y++)
         {
-            case ScopeShape.Circle:
+            var row = px + (long)y * w * 4;
+            var mRow = _mask!.AsSpan(y * w, w);
+            for (var x = 0; x < w; x++)
+                row[x * 4 + 3] = mRow[x];
+        }
+    }
+
+    private void EnsureMask(int w, int h, ScopeStyle scope)
+    {
+        if (_mask is not null && _maskW == w && _maskH == h && _maskShape == scope.Shape) return;
+        _maskW = w;
+        _maskH = h;
+        _maskShape = scope.Shape;
+        _mask = new byte[w * h];
+
+        var corner = (scope.Shape == ScopeShape.Rectangle ? 10 : 18) * 2;
+        var rx = w / 2.0;
+        var ry = h / 2.0;
+        var minR = Math.Min(rx, ry);
+
+        for (var y = 0; y < h; y++)
+        {
+            var py = y + 0.5 - ry;
+            for (var x = 0; x < w; x++)
             {
-                var rx = w / 2.0;
-                var ry = h / 2.0;
-                for (var y = 0; y < h; y++)
+                var px = x + 0.5 - rx;
+                // SDF: >0 внутри формы, в пикселях
+                double sd;
+                switch (scope.Shape)
                 {
-                    var dy = (y + 0.5 - ry) / ry;
-                    var row = px + (long)y * w * 4;
-                    for (var x = 0; x < w; x++)
+                    case ScopeShape.Circle:
+                        sd = minR - Math.Sqrt(px * px + py * py);
+                        break;
+                    case ScopeShape.RoundedSquare:
+                    case ScopeShape.Rectangle:
                     {
-                        var dx = (x + 0.5 - rx) / rx;
-                        row[x * 4 + 3] = dx * dx + dy * dy <= 1 ? (byte)255 : (byte)0;
+                        var qx = Math.Abs(px) - (rx - corner);
+                        var qy = Math.Abs(py) - (ry - corner);
+                        var ox = Math.Max(qx, 0);
+                        var oy = Math.Max(qy, 0);
+                        sd = Math.Min(Math.Max(qx, qy), 0) + Math.Sqrt(ox * ox + oy * oy) - corner;
+                        break;
                     }
+                    default:
+                        sd = Math.Min(rx - Math.Abs(px), ry - Math.Abs(py));
+                        break;
                 }
-                break;
-            }
-            case ScopeShape.RoundedSquare:
-            case ScopeShape.Rectangle:
-            {
-                var radius = (scope.Shape == ScopeShape.Rectangle ? 10 : 18) * 2;
-                var rx = w / 2.0;
-                var ry = h / 2.0;
-                for (var y = 0; y < h; y++)
-                {
-                    var row = px + (long)y * w * 4;
-                    for (var x = 0; x < w; x++)
-                    {
-                        var inside = x >= radius || y >= radius || x < w - radius || y < h - radius
-                            ? Math.Pow(Math.Max(0, Math.Abs(x + 0.5 - rx) - (rx - radius)) / radius, 2)
-                              + Math.Pow(Math.Max(0, Math.Abs(y + 0.5 - ry) - (ry - radius)) / radius, 2) <= 1
-                            : true;
-                        row[x * 4 + 3] = inside ? (byte)255 : (byte)0;
-                    }
-                }
-                break;
-            }
-            default:
-            {
-                for (var y = 0; y < h; y++)
-                {
-                    var row = px + (long)y * w * 4;
-                    for (var x = 0; x < w; x++)
-                        row[x * 4 + 3] = 255;
-                }
-                break;
+                _mask[y * w + x] = (byte)(Math.Clamp(sd + 0.5, 0, 1) * 255);
             }
         }
+    }
+
+    // UpdateLayeredWindow с AC_SRC_ALPHA ждёт премультиплицированный BGRA:
+    // где alpha=0, RGB обязан быть 0, иначе «прозрачная» область проступает.
+    private unsafe void PremultiplyFrame()
+    {
+        if (_frameBits == IntPtr.Zero) return;
+        byte* px = (byte*)_frameBits;
+        var count = (long)_winW * _winH;
+        for (var i = 0; i < count; i++)
+        {
+            var p = px + i * 4;
+            var a = p[3];
+            if (a == 255) continue;
+            if (a == 0) { p[0] = p[1] = p[2] = 0; continue; }
+            p[0] = (byte)(p[0] * a / 255);
+            p[1] = (byte)(p[1] * a / 255);
+            p[2] = (byte)(p[2] * a / 255);
+        }
+    }
+
+    private int _dumpCounter;
+
+    private unsafe void MaybeDumpFrame()
+    {
+        if (!DumpFrameEnabled || _frameBits == IntPtr.Zero) return;
+        if (++_dumpCounter % 60 != 1) return;
+        try
+        {
+            var dir = Path.GetTempPath();
+            using (var bmp = new Bitmap(_winW, _winH, PixelFormat.Format32bppArgb))
+            {
+                var bits = bmp.LockBits(new Rectangle(0, 0, _winW, _winH),
+                    ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+                byte* src = (byte*)_frameBits;
+                for (var y = 0; y < _winH; y++)
+                {
+                    byte* s = src + (long)y * _winW * 4;
+                    byte* d = (byte*)bits.Scan0 + (long)y * bits.Stride;
+                    for (var x = 0; x < _winW * 4; x++) d[x] = s[x];
+                }
+                bmp.UnlockBits(bits);
+                bmp.Save(Path.Combine(dir, "skyscope-frame.png"));
+            }
+            using (var alpha = new Bitmap(_winW, _winH, PixelFormat.Format24bppRgb))
+            {
+                var bits = alpha.LockBits(new Rectangle(0, 0, _winW, _winH),
+                    ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+                byte* src = (byte*)_frameBits;
+                for (var y = 0; y < _winH; y++)
+                {
+                    byte* s = src + (long)y * _winW * 4;
+                    byte* d = (byte*)bits.Scan0 + (long)y * bits.Stride;
+                    for (var x = 0; x < _winW; x++)
+                    {
+                        var a = s[x * 4 + 3];
+                        d[x * 3] = d[x * 3 + 1] = d[x * 3 + 2] = a;
+                    }
+                }
+                alpha.UnlockBits(bits);
+                alpha.Save(Path.Combine(dir, "skyscope-alpha.png"));
+            }
+        }
+        catch { }
     }
 
     private void DrawChrome(Profile profile)
@@ -318,6 +397,9 @@ public class LoupeWindow
             {
                 var ca = sRow[x * 4 + 3];
                 if (ca == 0) continue;
+                var maskA = _mask is not null ? _mask[y * _winW + x] : (byte)255;
+                if (maskA == 0) continue;
+                if (maskA < 255) ca = (byte)(ca * (maskA / 255.0));
                 var d = dRow + x * 4;
                 if (ca == 255)
                 {

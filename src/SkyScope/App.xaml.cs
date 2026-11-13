@@ -61,6 +61,8 @@ public partial class App : Application
                 await Dispatcher.InvokeAsync(async () => await Overlay.Show());
             });
         }
+
+        Ui.LoupeWindow.DumpFrameEnabled = e.Args.Contains("--frame-dump");
     }
 
     public void ShowMainWindow(bool minimized = false)
