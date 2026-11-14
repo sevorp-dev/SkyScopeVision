@@ -91,9 +91,13 @@ public class UpdateChecker
         return path;
     }
 
-    public static void LaunchInstaller(string path)
+    public static void LaunchInstaller(string path, bool silent = false)
     {
-        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        Process.Start(new ProcessStartInfo(path)
+        {
+            UseShellExecute = true,
+            Arguments = silent ? "/SILENT /NORESTART /SUPPRESSMSGBOXES" : "",
+        });
     }
 
     private static HttpClient CreateClient()

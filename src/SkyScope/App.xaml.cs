@@ -115,7 +115,13 @@ public partial class App : Application
         _tray.BalloonTipClicked += (_, _) =>
         {
             if (_pendingUpdate is not null)
-                Dispatcher.Invoke(() => StartUpdateFlow(_pendingUpdate));
+                Dispatcher.Invoke(() =>
+                {
+                    if (DownloadedSetupPath is not null)
+                        InstallDownloadedUpdate();
+                    else
+                        StartUpdateFlow(_pendingUpdate);
+                });
         };
 
         var menu = new ContextMenuStrip();
@@ -226,6 +232,35 @@ public partial class App : Application
                     $"Доступна версия {release.Tag}. Нажми, чтобы скачать.", ToolTipIcon.Info);
             }
         });
+        if (Store.Current.App.AutoDownloadUpdates)
+            _ = DownloadUpdateAsync(release);
+    }
+
+    public string? DownloadedSetupPath { get; private set; }
+
+    private async Task DownloadUpdateAsync(ReleaseInfo release)
+    {
+        var path = await Updates.DownloadSetupAsync(release);
+        if (path is null || !ReferenceEquals(release, _pendingUpdate)) return;
+        DownloadedSetupPath = path;
+        await Dispatcher.InvokeAsync(() =>
+        {
+            MainWindowInstance?.ShowUpdateReady(release);
+            if (MainWindowInstance is not { IsVisible: true })
+            {
+                EnsureTray();
+                _tray?.ShowBalloonTip(8000, "SkyScope",
+                    $"Версия {release.Tag} уже загружена. Нажми, чтобы установить.", ToolTipIcon.Info);
+            }
+        });
+    }
+
+    // Установка скачанного ранее установщика: тихий режим, AppMutex закроет приложение.
+    public void InstallDownloadedUpdate()
+    {
+        if (DownloadedSetupPath is null) return;
+        UpdateChecker.LaunchInstaller(DownloadedSetupPath, silent: true);
+        Shutdown();
     }
 
     private async Task UpdateLoopAsync()
@@ -241,7 +276,7 @@ public partial class App : Application
 
     public async Task<bool> CheckUpdatesNow() => await Updates.CheckAsync() is not null;
 
-    // Клик по balloon: скачиваем установщик и отдаём инсталлятору (AppMutex закроет приложение)
+    // Клик по balloon при выключенной автозагрузке: качаем и отдаём инсталлятору
     public void StartUpdateFlow(ReleaseInfo release)
     {
         _ = Task.Run(async () =>
@@ -250,7 +285,7 @@ public partial class App : Application
             if (path is null) return;
             await Dispatcher.InvokeAsync(() =>
             {
-                UpdateChecker.LaunchInstaller(path);
+                UpdateChecker.LaunchInstaller(path, silent: true);
                 Shutdown();
             });
         });
