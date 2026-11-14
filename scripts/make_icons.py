@@ -68,59 +68,77 @@ def make_icon(size: int) -> Image.Image:
     return img.resize((size, size), Image.LANCZOS)
 
 
-def make_settings_icon(size: int) -> Image.Image:
-    # прицел на силуэте головы — как иконка раздела «Настройка»
+def make_home_icon(size: int) -> Image.Image:
     s = size * 4
     k = s / 512
     img = make_base_plate(s)
     d = ImageDraw.Draw(img)
-    head = (216, 217, 222, 255)
-
-    head_c, head_r = 256 * k, 78 * k
-    d.ellipse(
-        [head_c - head_r, 198 * k - head_r, head_c + head_r, 198 * k + head_r],
-        fill=head,
-    )
-    d.polygon(_shoulders(k), fill=head)
-
-    cx, cy = 256 * k, 198 * k
-    ring_r, lw = 96 * k, 13 * k
-    d.ellipse(
-        [cx - ring_r, cy - ring_r, cx + ring_r, cy + ring_r],
-        outline=ACCENT,
-        width=int(lw),
-    )
-    tick_in, tick_out = 112 * k, 150 * k
-    cap = int(lw / 2)
-    for ang in (0, 90, 180, 270):
-        a = math.radians(ang)
-        x1, y1 = cx + tick_in * math.cos(a), cy + tick_in * math.sin(a)
-        x2, y2 = cx + tick_out * math.cos(a), cy + tick_out * math.sin(a)
-        d.line([(x1, y1), (x2, y2)], fill=ACCENT, width=int(lw))
-        for (px, py) in ((x1, y1), (x2, y2)):
-            d.ellipse([px - cap, py - cap, px + cap, py + cap], fill=ACCENT)
-
-    dot_r = 15 * k
-    d.ellipse([cx - dot_r, cy - dot_r, cx + dot_r, cy + dot_r], fill=ACCENT)
+    house = [(64, 280), (256, 72), (448, 280), (448, 448), (320, 448), (320, 320),
+             (192, 320), (192, 448), (64, 448)]
+    d.polygon([(x * k, y * k) for x, y in house], fill=(216, 217, 222, 255))
     return img.resize((size, size), Image.LANCZOS)
 
 
-def _shoulders(k: float):
-    # M 124 436 C 124 342 182 308 256 308 C 330 308 388 342 388 436 Z
-    def cubic(p0, p1, p2, p3, n=48):
-        pts = []
-        for i in range(n + 1):
-            t = i / n
-            mt = 1 - t
-            pts.append((
-                mt ** 3 * p0[0] + 3 * mt * mt * t * p1[0] + 3 * mt * t * t * p2[0] + t ** 3 * p3[0],
-                mt ** 3 * p0[1] + 3 * mt * mt * t * p1[1] + 3 * mt * t * t * p2[1] + t ** 3 * p3[1],
-            ))
-        return pts
+def make_scope_icon(size: int) -> Image.Image:
+    # перекрестие в кольце — раздел «Прицел»
+    s = size * 4
+    k = s / 512
+    img = make_base_plate(s)
+    d = ImageDraw.Draw(img)
+    cx, cy = s / 2, s / 2
+    ring_r, lw = 150 * k, int(26 * k)
 
-    left = cubic((124, 436), (124, 342), (182, 308), (256, 308))
-    right = cubic((256, 308), (330, 308), (388, 342), (388, 436))
-    return [(x * k, y * k) for x, y in left + right]
+    d.ellipse([cx - ring_r, cy - ring_r, cx + ring_r, cy + ring_r],
+              outline=ACCENT, width=lw)
+    cross = int(150 * k)
+    d.line([(cx, cy - cross), (cx, cy + cross)], fill=ACCENT, width=lw)
+    d.line([(cx - cross, cy), (cx + cross, cy)], fill=ACCENT, width=lw)
+
+    dot_r = 34 * k
+    d.ellipse([cx - dot_r, cy - dot_r, cx + dot_r, cy + dot_r], fill=(14, 14, 17, 255))
+    return img.resize((size, size), Image.LANCZOS)
+
+
+def make_app_icon(size: int) -> Image.Image:
+    # ползунки — раздел «Приложение»
+    s = size * 4
+    k = s / 512
+    img = make_base_plate(s)
+    d = ImageDraw.Draw(img)
+    light = (216, 217, 222, 255)
+    lw = int(22 * k)
+    for y in (166, 256, 346):
+        yy = y * k
+        d.line([(96 * k, yy), (416 * k, yy)], fill=light, width=lw)
+    for (x, y) in ((320, 166), (180, 256), (350, 346)):
+        r = 40 * k
+        d.ellipse([x * k - r, y * k - r, x * k + r, y * k + r], fill=ACCENT)
+    return img.resize((size, size), Image.LANCZOS)
+
+
+def make_help_icon(size: int) -> Image.Image:
+    s = size * 4
+    k = s / 512
+    img = make_base_plate(s)
+    d = ImageDraw.Draw(img)
+    cx, cy = s / 2, s / 2
+    ring_r, lw = 150 * k, int(26 * k)
+    d.ellipse([cx - ring_r, cy - ring_r, cx + ring_r, cy + ring_r],
+              outline=(216, 217, 222, 255), width=lw)
+
+    # знак вопроса: дуга над верхней половиной + ножка + точка
+    qw = int(30 * k)
+    arc_r = 52 * k
+    acx, acy = 256 * k, 188 * k
+    d.arc([acx - arc_r, acy - arc_r, acx + arc_r, acy + arc_r],
+          start=160, end=340, fill=ACCENT, width=qw)
+    stem_x = 262 * k
+    half = qw / 2
+    d.rounded_rectangle([stem_x - half, 234 * k, stem_x + half, 296 * k],
+                        radius=half, fill=ACCENT)
+    dot_r = 22 * k
+    d.ellipse([stem_x - dot_r, 352 * k - dot_r, stem_x + dot_r, 352 * k + dot_r], fill=ACCENT)
+    return img.resize((size, size), Image.LANCZOS)
 
 
 def make_base_plate(s: int) -> Image.Image:
@@ -150,7 +168,10 @@ def main():
     tray = make_icon(32)
     tray.save(os.path.join(assets, "tray.png"))
 
-    make_settings_icon(512).save(os.path.join(assets, "icon-settings.png"))
+    make_home_icon(512).save(os.path.join(assets, "icon-home.png"))
+    make_scope_icon(512).save(os.path.join(assets, "icon-scope.png"))
+    make_app_icon(512).save(os.path.join(assets, "icon-app.png"))
+    make_help_icon(512).save(os.path.join(assets, "icon-help.png"))
 
     # ICO с набором размеров
     sizes = [16, 24, 32, 48, 64, 128, 256]

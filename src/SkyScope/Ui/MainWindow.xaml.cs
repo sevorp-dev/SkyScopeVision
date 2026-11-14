@@ -73,10 +73,6 @@ public partial class MainWindow : Window
         {
             var profile = _store.Current.ActiveProfile;
 
-            HomeZoomSlider.Value = profile.Zoom.Level;
-            HomeZoomSlider.Minimum = profile.Zoom.Min;
-            HomeZoomSlider.Maximum = profile.Zoom.Max;
-            HomeZoomValue.Text = $"{profile.Zoom.Level:0.00}×";
             ResetProfileDesc.Text = $"Вернуть зум и оформление профиля «{profile.Name}» к заводским";
             ScopeSub.Text = $"Параметры активного профиля «{profile.Name}»";
 
@@ -202,6 +198,9 @@ public partial class MainWindow : Window
 
     private void GitHub_Click(object sender, RoutedEventArgs e) =>
         Process.Start(new ProcessStartInfo("https://github.com/sevorp-dev/SkyScopeVision") { UseShellExecute = true });
+
+    private void Telegram_Click(object sender, RoutedEventArgs e) =>
+        Process.Start(new ProcessStartInfo("https://t.me/SkyLoft_Studio") { UseShellExecute = true });
 
     private void Link_Click(object sender, RequestNavigateEventArgs e)
     {
@@ -365,6 +364,11 @@ public partial class MainWindow : Window
         _listeningButton = button;
         button.Content = "Нажмите клавиши…";
         button.Focus();
+        _hotkeys.BeginMouseCapture((mouseBtn, mods) => Dispatcher.Invoke(() =>
+        {
+            if (_listeningHotkey is { } action)
+                ApplyHotkeyCombo(action, HotkeyParser.Format(mods, mouseBtn));
+        }));
     }
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)
@@ -401,7 +405,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        var combo = HotkeyParser.Format(nativeMods, (uint)vk);
+        ApplyHotkeyCombo(_listeningHotkey.Value, HotkeyParser.Format(nativeMods, (uint)vk));
+    }
+
+    private void ApplyHotkeyCombo(HotkeyAction action, string combo)
+    {
         var all = new Dictionary<HotkeyAction, string>
         {
             [HotkeyAction.Toggle] = _store.Current.Hotkeys.Toggle,
@@ -409,7 +417,7 @@ public partial class MainWindow : Window
             [HotkeyAction.ZoomOut] = _store.Current.Hotkeys.ZoomOut,
             [HotkeyAction.Reset] = _store.Current.Hotkeys.Reset,
         };
-        var conflict = all.FirstOrDefault(kv => kv.Key != _listeningHotkey.Value && kv.Value == combo);
+        var conflict = all.FirstOrDefault(kv => kv.Key != action && kv.Value == combo);
         if (conflict.Value is not null)
         {
             ShowToast($"Комбинация занята: {NameOf(conflict.Key)}", true);
@@ -417,7 +425,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        var action = _listeningHotkey.Value;
         _store.Update(s =>
         {
             switch (action)
@@ -435,6 +442,7 @@ public partial class MainWindow : Window
 
     private void StopListening()
     {
+        _hotkeys.EndMouseCapture();
         if (_listeningButton is not null)
             _listeningButton.Content = GetHotkeyCombo(_listeningHotkey.GetValueOrDefault());
         _listeningHotkey = null;
@@ -471,12 +479,6 @@ public partial class MainWindow : Window
     }
 
     // ---------- Profile settings ----------
-
-    private void HomeZoom_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (_suppressEvents) return;
-        _store.Update(s => s.ActiveProfile.Zoom.Level = Math.Round(e.NewValue * 4) / 4);
-    }
 
     private void ProfileZoom_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
@@ -634,7 +636,7 @@ public partial class MainWindow : Window
     {
         var on = _overlay.IsActive;
         NavScope.IsEnabled = on;
-        NavScope.ToolTip = on ? null : "Включи прицел, чтобы настраивать профиль";
+        NavScope.ToolTip = on ? null : "Включи прицел, чтобы менять его параметры";
         if (!on && PageScope.Visibility == Visibility.Visible)
             Nav_Click(NavHome, new RoutedEventArgs());
     }

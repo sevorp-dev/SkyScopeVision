@@ -15,6 +15,7 @@
     <img src="https://img.shields.io/badge/Windows-10%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
     <img src="https://img.shields.io/badge/.NET-9-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 9">
     <a href="LICENSE"><img src="https://img.shields.io/badge/Лицензия-Apache%202.0-blue?style=for-the-badge" alt="Apache 2.0"></a>
+    <a href="https://t.me/SkyLoft_Studio"><img src="https://img.shields.io/badge/Telegram-SkyLoft__Studio-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram"></a>
   </p>
 
   <p>
