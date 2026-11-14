@@ -316,7 +316,7 @@
                                         <Grid>
                                             <StackPanel>
                                                 <TextBlock Style="{StaticResource FieldName}" Text="Расположение на экране"/>
-                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Куда выводить увеличенную картинку (зона захвата — центр)"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Куда выводить увеличенную картинку"/>
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" x:Name="PosSeg">
                                                 <Button Style="{StaticResource ActionButton}" Content="Центр" Margin="0,0,6,0" Click="PosCenter_Click"/>
@@ -325,6 +325,23 @@
                                                 <Button Style="{StaticResource ActionButton}" Content="Слева" Margin="0,0,6,0" Click="PosLeft_Click"/>
                                                 <Button Style="{StaticResource ActionButton}" Content="Справа" Margin="0,0,6,0" Click="PosRight_Click"/>
                                                 <Button Style="{StaticResource ActionButton}" Content="✥" ToolTip="Переместить вручную" Click="PosCustom_Click"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldRow}">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Зона захвата"/>
+                                                <TextBlock x:Name="CaptureDesc" Style="{StaticResource FieldDesc}" Text="Какую точку экрана увеличивает лупа"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" x:Name="CaptureSeg">
+                                                    <Button Style="{StaticResource ActionButton}" Content="Центр" Margin="0,0,6,0" Click="CaptureCenter_Click"/>
+                                                    <Button Style="{StaticResource ActionButton}" Content="Своя" Margin="0,0,6,0" Click="CaptureCustom_Click"/>
+                                                </StackPanel>
+                                                <Button x:Name="BtnPickCapture" Style="{StaticResource ActionButton}" Content="Указать точку"
+                                                        ToolTip="Кликни по экрану — лупа будет увеличивать выбранную точку (Esc — отмена)"
+                                                        Click="PickCapture_Click"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -344,10 +361,20 @@
                                     <Border Style="{StaticResource FieldRow}">
                                         <Grid>
                                             <StackPanel>
-                                                <TextBlock Style="{StaticResource FieldName}" Text="Цвет рамки и перекрестия"/>
-                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Акцентный цвет прицела"/>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Цвет контура"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Акцентный цвет рамки лупы"/>
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" x:Name="ColorSwatches"/>
+                                        </Grid>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldRow}">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Контур лупы"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Показывать рамку вокруг области увеличения"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="T_ShowBorder" Style="{StaticResource SkyToggle}"
+                                                          HorizontalAlignment="Right" Checked="ProfileScopeToggle_Changed" Unchecked="ProfileScopeToggle_Changed"/>
                                         </Grid>
                                     </Border>
                                     <local:SliderField x:Name="F_BorderWidth" Label="Толщина рамки" Desc="Ширина обводки области увеличения"
@@ -366,6 +393,28 @@
                                     </Border>
                                     <local:SliderField x:Name="F_DimOpacity" Label="Степень затемнения" Desc="Насколько темным будет фон за прицелом"
                                                        Minimum="0.1" Maximum="0.9" Step="0.05" Suffix="%" Decimals="0" Scale="100" ValueChanged="ProfileScope_Changed"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource CardTitle}" Text="ИЗОБРАЖЕНИЕ"/>
+                                    <Border Style="{StaticResource FieldRow}">
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource FieldName}" Text="Инверсия цветов"/>
+                                                <TextBlock Style="{StaticResource FieldDesc}" Text="Инвертировать цвета внутри лупы"/>
+                                            </StackPanel>
+                                            <ToggleButton x:Name="T_Invert" Style="{StaticResource SkyToggle}"
+                                                          HorizontalAlignment="Right" Checked="ProfileImageToggle_Changed" Unchecked="ProfileImageToggle_Changed"/>
+                                        </Grid>
+                                    </Border>
+                                    <local:SliderField x:Name="F_Contrast" Label="Контраст" Desc="100% — без изменений"
+                                                       Minimum="0.5" Maximum="2" Step="0.05" Suffix="%" Decimals="0" Scale="100" ValueChanged="ProfileImage_Changed"/>
+                                    <local:SliderField x:Name="F_Brightness" Label="Яркость" Desc="Сдвиг яркости кадра"
+                                                       Minimum="-0.5" Maximum="0.5" Step="0.05" Suffix="%" Decimals="0" Scale="100" ValueChanged="ProfileImage_Changed"/>
+                                    <local:SliderField x:Name="F_Saturation" Label="Насыщенность" Desc="0% — чёрно-белый кадр, 100% — без изменений"
+                                                       Minimum="0" Maximum="2" Step="0.05" Suffix="%" Decimals="0" Scale="100" ValueChanged="ProfileImage_Changed"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -452,6 +501,22 @@
                                                       HorizontalAlignment="Right" Checked="AppToggle_Changed" Unchecked="AppToggle_Changed"/>
                                     </Grid>
                                 </Border>
+                                <Border Style="{StaticResource FieldRow}" BorderThickness="0">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource FieldName}" Text="Скачивать автоматически"/>
+                                            <TextBlock Style="{StaticResource FieldDesc}" Text="Установщик новой версии качается сам — останется нажать «Установить»"/>
+                                        </StackPanel>
+                                        <ToggleButton x:Name="T_AutoDownload" Style="{StaticResource SkyToggle}"
+                                                      HorizontalAlignment="Right" Checked="AppToggle_Changed" Unchecked="AppToggle_Changed"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource CardTitle}" Text="ВЕРСИЯ"/>
                                 <Border Style="{StaticResource FieldRow}" BorderThickness="0">
                                     <Grid>
                                         <StackPanel>

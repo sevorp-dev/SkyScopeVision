@@ -175,6 +175,7 @@ public class LoupeWindow
         GdiApi.SetBrushOrgEx(_frameDc, 0, 0, out _);
         GdiApi.StretchBlt(_frameDc, 0, 0, _winW, _winH, _memDc, 0, 0, srcW, srcH, GdiApi.SRCCOPY);
 
+        if (profile.Scope.Image.IsActive) ApplyImageAdjust(profile.Scope.Image);
         ApplyShapeAlpha(scope);
         DrawChrome(profile);
         PremultiplyFrame();
@@ -193,6 +194,45 @@ public class LoupeWindow
     }
 
     private int _ulwLogCount;
+
+    // Цветокоррекция кадра: яркость/контраст → насыщенность → инверсия.
+    private unsafe void ApplyImageAdjust(ImageAdjustSettings img)
+    {
+        if (_frameBits == IntPtr.Zero) return;
+        var contrast = img.Contrast;
+        var brightness = img.Brightness * 128.0;
+        var saturation = img.Saturation;
+        var invert = img.Invert;
+        var count = (long)_winW * _winH;
+        byte* px = (byte*)_frameBits;
+        for (var i = 0; i < count; i++)
+        {
+            var p = px + i * 4;
+            double b = p[0], g = p[1], r = p[2];
+            if (contrast != 1 || brightness != 0)
+            {
+                b = (b - 128) * contrast + 128 + brightness;
+                g = (g - 128) * contrast + 128 + brightness;
+                r = (r - 128) * contrast + 128 + brightness;
+            }
+            if (saturation != 1)
+            {
+                var luma = 0.114 * b + 0.587 * g + 0.299 * r;
+                b = luma + (b - luma) * saturation;
+                g = luma + (g - luma) * saturation;
+                r = luma + (r - luma) * saturation;
+            }
+            if (invert)
+            {
+                b = 255 - b;
+                g = 255 - g;
+                r = 255 - r;
+            }
+            p[0] = (byte)Math.Clamp(b, 0, 255);
+            p[1] = (byte)Math.Clamp(g, 0, 255);
+            p[2] = (byte)Math.Clamp(r, 0, 255);
+        }
+    }
 
     // Маска формы: кэшируется по размеру/форме, со сглаживанием края (SDF-покрытие)
     private byte[]? _mask;
@@ -346,7 +386,7 @@ public class LoupeWindow
         var borderAlpha = (int)(scope.BorderOpacity * 255);
         var penColor = Color.FromArgb(borderAlpha, accent);
 
-        if (scope.BorderWidth > 0)
+        if (scope.ShowBorder && scope.BorderWidth > 0)
         {
             using var pen = new Pen(penColor, (float)scope.BorderWidth);
             var inset = (float)scope.BorderWidth / 2;

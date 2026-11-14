@@ -51,7 +51,16 @@ public partial class MainWindow : Window
         InitializeComponent();
         BuildColorSwatches();
         RefreshBindings();
-        _overlay.Toggled += active => Dispatcher.Invoke(() => OverlaySwitch.IsChecked = active);
+        _overlay.Toggled += active => Dispatcher.Invoke(() =>
+        {
+            OverlaySwitch.IsChecked = active;
+            UpdateNavAvailability();
+        });
+        _overlay.CapturePointPicked += (x, y) => Dispatcher.Invoke(() =>
+        {
+            ShowToast($"Точка захвата сохранена: {x:+0;-0;0}, {y:+0;-0;0}");
+            UpdateCaptureButtons(CaptureAnchor.Custom);
+        });
         _store.Changed += _ => Dispatcher.Invoke(RefreshBindings);
     }
 
@@ -85,8 +94,14 @@ public partial class MainWindow : Window
             F_BorderOpacity.SetValueSilently(profile.Scope.BorderOpacity);
             F_DimOpacity.SetValueSilently(profile.Scope.DimOpacity);
             T_Dim.IsChecked = profile.Scope.DimOutside;
+            T_ShowBorder.IsChecked = profile.Scope.ShowBorder;
             UpdateShapeButtons(profile.Scope.Shape);
             UpdatePositionButtons(profile.Scope.Position);
+            UpdateCaptureButtons(profile.Scope.Capture);
+            F_Contrast.SetValueSilently(profile.Scope.Image.Contrast);
+            F_Brightness.SetValueSilently(profile.Scope.Image.Brightness);
+            F_Saturation.SetValueSilently(profile.Scope.Image.Saturation);
+            T_Invert.IsChecked = profile.Scope.Image.Invert;
             UpdateColorSwatches(profile.Scope.BorderColor);
             T_MoveMode.IsChecked = _overlay.MoveMode;
 
@@ -95,6 +110,7 @@ public partial class MainWindow : Window
             T_Autostart.IsChecked = Autostart.IsEnabled();
             T_Tray.IsChecked = _store.Current.App.ShowTrayIcon;
             T_CheckUpdates.IsChecked = _store.Current.App.CheckUpdates;
+            T_AutoDownload.IsChecked = _store.Current.App.AutoDownloadUpdates;
             CurrentVersionDesc.Text = $"{UpdateChecker.AssemblyVersion()} · релизы публикуются на GitHub";
             UpdateFpsButtons(_store.Current.App.CaptureFps);
 
@@ -102,6 +118,7 @@ public partial class MainWindow : Window
             BuildProfileChips();
             BuildHelpHotkeys();
             OverlaySwitch.IsChecked = _overlay.IsActive;
+            UpdateNavAvailability();
         }
         finally
         {
@@ -489,10 +506,26 @@ public partial class MainWindow : Window
             scope.BorderOpacity = F_BorderOpacity.Value;
             scope.DimOpacity = F_DimOpacity.Value;
             scope.DimOutside = T_Dim.IsChecked == true;
+            scope.ShowBorder = T_ShowBorder.IsChecked == true;
         });
     }
 
     private void ProfileScopeToggle_Changed(object sender, RoutedEventArgs e) => ProfileScope_Changed(sender, new RoutedPropertyChangedEventArgs<double>(0, 0));
+
+    private void ProfileImage_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_suppressEvents) return;
+        _store.Update(s =>
+        {
+            var image = s.ActiveProfile.Scope.Image;
+            image.Contrast = F_Contrast.Value;
+            image.Brightness = F_Brightness.Value;
+            image.Saturation = F_Saturation.Value;
+            image.Invert = T_Invert.IsChecked == true;
+        });
+    }
+
+    private void ProfileImageToggle_Changed(object sender, RoutedEventArgs e) => ProfileImage_Changed(sender, new RoutedPropertyChangedEventArgs<double>(0, 0));
 
     private void ProfileAccess_Changed(object sender, RoutedEventArgs e)
     {
@@ -558,6 +591,52 @@ public partial class MainWindow : Window
         };
         for (var i = 0; i < names.Length; i++)
             StyleButton((Button)PosSeg.Children[i], names[i] == pos);
+    }
+
+    private void CaptureCenter_Click(object sender, RoutedEventArgs e)
+    {
+        _store.Update(s => s.ActiveProfile.Scope.Capture = CaptureAnchor.Center);
+        UpdateCaptureButtons(CaptureAnchor.Center);
+    }
+
+    private void CaptureCustom_Click(object sender, RoutedEventArgs e)
+    {
+        _store.Update(s => s.ActiveProfile.Scope.Capture = CaptureAnchor.Custom);
+        UpdateCaptureButtons(CaptureAnchor.Custom);
+        var scope = _store.Current.ActiveProfile.Scope;
+        if (scope.CaptureOffsetX == 0 && scope.CaptureOffsetY == 0)
+            ShowToast("Нажми «Указать точку» и кликни по экрану");
+    }
+
+    private void PickCapture_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_overlay.IsActive)
+        {
+            ShowToast("Сначала включи прицел", true);
+            return;
+        }
+        _overlay.BeginCapturePointPick();
+        ShowToast("Кликни по точке на экране, которую будет увеличивать лупа. Esc — отмена");
+    }
+
+    private void UpdateCaptureButtons(CaptureAnchor anchor)
+    {
+        StyleButton((Button)CaptureSeg.Children[0], anchor == CaptureAnchor.Center);
+        StyleButton((Button)CaptureSeg.Children[1], anchor == CaptureAnchor.Custom);
+        var scope = _store.Current.ActiveProfile.Scope;
+        BtnPickCapture.IsEnabled = _overlay.IsActive;
+        CaptureDesc.Text = anchor == CaptureAnchor.Custom
+            ? $"Смещение от центра: {scope.CaptureOffsetX:+0;-0;0}, {scope.CaptureOffsetY:+0;-0;0} px"
+            : "Какую точку экрана увеличивает лупа";
+    }
+
+    private void UpdateNavAvailability()
+    {
+        var on = _overlay.IsActive;
+        NavScope.IsEnabled = on;
+        NavScope.ToolTip = on ? null : "Включи прицел, чтобы настраивать профиль";
+        if (!on && PageScope.Visibility == Visibility.Visible)
+            Nav_Click(NavHome, new RoutedEventArgs());
     }
 
     private void MoveMode_Changed(object sender, RoutedEventArgs e)
@@ -650,6 +729,10 @@ public partial class MainWindow : Window
         {
             _store.Update(s => s.App.CheckUpdates = T_CheckUpdates.IsChecked == true);
         }
+        else if (ReferenceEquals(sender, T_AutoDownload))
+        {
+            _store.Update(s => s.App.AutoDownloadUpdates = T_AutoDownload.IsChecked == true);
+        }
         else
         {
             _store.Update(s => s.App.ShowTrayIcon = T_Tray.IsChecked == true);
@@ -697,15 +780,28 @@ public partial class MainWindow : Window
         UpdateBanner.Visibility = Visibility.Visible;
     }
 
+    public void ShowUpdateReady(ReleaseInfo release)
+    {
+        ShowUpdateBanner(release);
+        UpdateNow.Content = "Перезапустить и установить";
+    }
+
     private async void UpdateNow_Click(object sender, RoutedEventArgs e)
     {
         if (_pendingRelease is null) return;
+        var app = (App)Application.Current;
+        if (app.DownloadedSetupPath is not null)
+        {
+            UpdateNow.IsEnabled = false;
+            app.InstallDownloadedUpdate();
+            return;
+        }
         UpdateNow.IsEnabled = false;
         const string idle = "Скачать и установить";
         try
         {
             var progress = new Progress<double>(p => UpdateNow.Content = $"Скачивание… {p:P0}");
-            var path = await ((App)Application.Current).Updates.DownloadSetupAsync(_pendingRelease, progress);
+            var path = await app.Updates.DownloadSetupAsync(_pendingRelease, progress);
             if (path is null)
             {
                 ShowToast("Установщик не найден в релизе", true);
@@ -713,7 +809,7 @@ public partial class MainWindow : Window
                 UpdateNow.IsEnabled = true;
                 return;
             }
-            UpdateChecker.LaunchInstaller(path);
+            UpdateChecker.LaunchInstaller(path, silent: true);
             Application.Current.Shutdown();
         }
         catch

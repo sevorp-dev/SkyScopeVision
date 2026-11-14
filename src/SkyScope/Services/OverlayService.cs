@@ -36,6 +36,10 @@ public class OverlayService
         set { if (_mag is not null) _mag.MoveMode = value; }
     }
 
+    public bool PickingCapturePoint { get; private set; }
+
+    public event Action<int, int>? CapturePointPicked;
+
     public OverlayService(SettingsStore store)
     {
         _store = store;
@@ -105,6 +109,34 @@ public class OverlayService
         return Task.CompletedTask;
     }
 
+    public void BeginCapturePointPick()
+    {
+        if (!IsActive || PickingCapturePoint) return;
+        PickingCapturePoint = CapturePointPicker.Start(OnCapturePointPicked, () =>
+        {
+            PickingCapturePoint = false;
+            _forceUpdate = true;
+        });
+    }
+
+    private void OnCapturePointPicked(int x, int y)
+    {
+        PickingCapturePoint = false;
+        var scale = _monitorDpi / 96.0;
+        var cx = _monitorBoundsPhysical.Left + _monitorBoundsPhysical.Width / 2;
+        var cy = _monitorBoundsPhysical.Top + _monitorBoundsPhysical.Height / 2;
+        var offsetX = (int)((x - cx) / scale);
+        var offsetY = (int)((y - cy) / scale);
+        _store.Update(s =>
+        {
+            s.ActiveProfile.Scope.Capture = CaptureAnchor.Custom;
+            s.ActiveProfile.Scope.CaptureOffsetX = offsetX;
+            s.ActiveProfile.Scope.CaptureOffsetY = offsetY;
+        });
+        _forceUpdate = true;
+        CapturePointPicked?.Invoke(offsetX, offsetY);
+    }
+
     private void OnMagMoved(int offsetX, int offsetY)
     {
         var scale = _monitorDpi / 96.0;
@@ -164,12 +196,28 @@ public class OverlayService
         _forceUpdate = false;
         _lastRenderAt = now;
 
-        var cx = _monitorBoundsPhysical.Left + _monitorBoundsPhysical.Width / 2;
-        var cy = _monitorBoundsPhysical.Top + _monitorBoundsPhysical.Height / 2;
+        var centerX = _monitorBoundsPhysical.Left + _monitorBoundsPhysical.Width / 2;
+        var centerY = _monitorBoundsPhysical.Top + _monitorBoundsPhysical.Height / 2;
+        int cx, cy;
+        if (PickingCapturePoint)
+        {
+            cx = cursor.X;
+            cy = cursor.Y;
+        }
+        else if (profile.Scope.Capture == CaptureAnchor.Custom)
+        {
+            cx = centerX + (int)(profile.Scope.CaptureOffsetX * scale);
+            cy = centerY + (int)(profile.Scope.CaptureOffsetY * scale);
+        }
+        else
+        {
+            cx = centerX;
+            cy = centerY;
+        }
 
         _mag.Update(cx, cy, scale, profile);
 
-        if (profile.Scope.DimOutside)
+        if (profile.Scope.DimOutside && !PickingCapturePoint)
         {
             _dim?.Update(_monitorBoundsPhysical, profile.Scope,
                 _mag.WindowX, _mag.WindowY, _mag.WindowW, _mag.WindowH);

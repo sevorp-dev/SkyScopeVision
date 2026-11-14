@@ -21,6 +21,12 @@ public enum ScopePosition
     Custom,
 }
 
+public enum CaptureAnchor
+{
+    Center,
+    Custom,
+}
+
 public class HotkeyMap
 {
     public string Toggle { get; set; } = "Ctrl+Shift+Z";
@@ -36,6 +42,7 @@ public class ScopeStyle
     public string BorderColor { get; set; } = "#FF7D1F";
     public double BorderWidth { get; set; } = 3;
     public double BorderOpacity { get; set; } = 1;
+    public bool ShowBorder { get; set; } = true;
     public bool DimOutside { get; set; }
     public double DimOpacity { get; set; } = 0.55;
     public bool ShowZoomBadge { get; set; } = true;
@@ -44,6 +51,24 @@ public class ScopeStyle
     /// Кастомное смещение центра окна относительно центра монитора (логические px).
     public int CustomOffsetX { get; set; }
     public int CustomOffsetY { get; set; }
+    /// Точка экрана, которую увеличивает лупа.
+    public CaptureAnchor Capture { get; set; } = CaptureAnchor.Center;
+    /// Смещение точки захвата относительно центра монитора (логические px).
+    public int CaptureOffsetX { get; set; }
+    public int CaptureOffsetY { get; set; }
+    public ImageAdjustSettings Image { get; set; } = new();
+}
+
+public class ImageAdjustSettings
+{
+    public bool Invert { get; set; }
+    public double Contrast { get; set; } = 1;
+    public double Brightness { get; set; }
+    public double Saturation { get; set; } = 1;
+
+    [JsonIgnore]
+    public bool IsActive =>
+        Invert || Contrast != 1 || Brightness != 0 || Saturation != 1;
 }
 
 public class ZoomSettings
@@ -75,6 +100,7 @@ public class AppSettings
     public bool ShowTrayIcon { get; set; } = true;
     public int CaptureFps { get; set; } = 60;
     public bool CheckUpdates { get; set; } = true;
+    public bool AutoDownloadUpdates { get; set; } = true;
     public string? SkippedRelease { get; set; }
 }
 
