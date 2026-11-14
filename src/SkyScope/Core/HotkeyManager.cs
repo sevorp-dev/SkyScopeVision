@@ -15,6 +15,8 @@ public enum HotkeyAction
 public class HotkeyManager
 {
     private readonly Dictionary<HotkeyAction, int> _registered = new();
+    private readonly Dictionary<HotkeyAction, (MouseButtonKind Button, uint Mods)> _mouse = new();
+    private Action<MouseButtonKind, uint>? _captureCallback;
 
     public IntPtr Hwnd { get; set; }
 
@@ -28,6 +30,7 @@ public class HotkeyManager
         Register(HotkeyAction.ZoomIn, map.ZoomIn);
         Register(HotkeyAction.ZoomOut, map.ZoomOut);
         Register(HotkeyAction.Reset, map.Reset);
+        SyncMouseHook();
     }
 
     public void UnregisterAll()
@@ -35,11 +38,19 @@ public class HotkeyManager
         foreach (var id in _registered.Values)
             NativeMethods.UnregisterHotKey(Hwnd, id);
         _registered.Clear();
+        _mouse.Clear();
+        _captureCallback = null;
+        MouseButtonHook.Uninstall();
     }
 
     private void Register(HotkeyAction action, string combo)
     {
-        if (!HotkeyParser.TryParse(combo, out var mods, out var key) || key == 0) return;
+        if (!HotkeyParser.TryParse(combo, out var mods, out var key, out var mouse)) return;
+        if (mouse != MouseButtonKind.None)
+        {
+            _mouse[action] = (mouse, mods);
+            return;
+        }
         var id = (int)action + 1;
         if (NativeMethods.RegisterHotKey(Hwnd, id, mods, key))
         {
@@ -49,6 +60,46 @@ public class HotkeyManager
         {
             RegistrationFailed?.Invoke(action, combo);
         }
+    }
+
+    // Пока открыт захват бинда, любая кнопка мыши уходит в callback и глотается.
+    public void BeginMouseCapture(Action<MouseButtonKind, uint> callback)
+    {
+        _captureCallback = callback;
+        SyncMouseHook();
+    }
+
+    public void EndMouseCapture()
+    {
+        _captureCallback = null;
+        SyncMouseHook();
+    }
+
+    private void SyncMouseHook()
+    {
+        if (_mouse.Count > 0 || _captureCallback is not null)
+            MouseButtonHook.Install(OnMouseButton);
+        else
+            MouseButtonHook.Uninstall();
+    }
+
+    private bool OnMouseButton(MouseButtonKind button, uint mods)
+    {
+        if (CapturePointPicker.IsPicking) return false;
+        if (_captureCallback is { } cb)
+        {
+            cb(button, mods);
+            return true;
+        }
+        foreach (var kv in _mouse)
+        {
+            if (kv.Value.Button == button && kv.Value.Mods == mods)
+            {
+                Triggered?.Invoke(kv.Key);
+                return true;
+            }
+        }
+        return false;
     }
 
     public void Attach(WindowInteropHelper helper)
@@ -71,10 +122,11 @@ public class HotkeyManager
 
 public static class HotkeyParser
 {
-    public static bool TryParse(string combo, out uint modifiers, out uint key)
+    public static bool TryParse(string combo, out uint modifiers, out uint key, out MouseButtonKind mouse)
     {
         modifiers = 0;
         key = 0;
+        mouse = MouseButtonKind.None;
         if (string.IsNullOrWhiteSpace(combo)) return false;
 
         var parts = combo.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -87,14 +139,38 @@ public static class HotkeyParser
                 case "SHIFT": modifiers |= NativeMethods.MOD_SHIFT; break;
                 case "WIN": modifiers |= NativeMethods.MOD_WIN; break;
                 default:
+                    if (TryMouseToken(part, out mouse)) break;
                     key = KeyToVirtualKey(part);
                     if (key == 0) return false;
                     break;
             }
         }
+        if (mouse != MouseButtonKind.None) return true;
         var hasModifier = (modifiers & (NativeMethods.MOD_CONTROL | NativeMethods.MOD_ALT | NativeMethods.MOD_SHIFT | NativeMethods.MOD_WIN)) != 0;
         return key != 0 && (hasModifier || key >= NativeMethods.VK_F1 && key <= NativeMethods.VK_F24);
     }
+
+    public static bool TryMouseToken(string part, out MouseButtonKind button)
+    {
+        button = part.ToUpperInvariant() switch
+        {
+            "ПКМ" or "RBUTTON" or "RIGHT" => MouseButtonKind.Right,
+            "СКМ" or "MBUTTON" or "MIDDLE" => MouseButtonKind.Middle,
+            "БОКОВАЯ 1" or "XBUTTON1" or "MOUSE4" or "X1" => MouseButtonKind.X1,
+            "БОКОВАЯ 2" or "XBUTTON2" or "MOUSE5" or "X2" => MouseButtonKind.X2,
+            _ => MouseButtonKind.None,
+        };
+        return button != MouseButtonKind.None;
+    }
+
+    public static string MouseDisplay(MouseButtonKind button) => button switch
+    {
+        MouseButtonKind.Right => "ПКМ",
+        MouseButtonKind.Middle => "СКМ",
+        MouseButtonKind.X1 => "Боковая 1",
+        MouseButtonKind.X2 => "Боковая 2",
+        _ => "",
+    };
 
     private static uint KeyToVirtualKey(string key)
     {
@@ -153,6 +229,17 @@ public static class HotkeyParser
         if ((mods & NativeMethods.MOD_SHIFT) != 0) parts.Add("Shift");
         if ((mods & NativeMethods.MOD_WIN) != 0) parts.Add("Win");
         parts.Add(VirtualKeyToDisplay(key));
+        return string.Join("+", parts);
+    }
+
+    public static string Format(uint mods, MouseButtonKind mouse)
+    {
+        var parts = new List<string>();
+        if ((mods & NativeMethods.MOD_CONTROL) != 0) parts.Add("Ctrl");
+        if ((mods & NativeMethods.MOD_ALT) != 0) parts.Add("Alt");
+        if ((mods & NativeMethods.MOD_SHIFT) != 0) parts.Add("Shift");
+        if ((mods & NativeMethods.MOD_WIN) != 0) parts.Add("Win");
+        parts.Add(MouseDisplay(mouse));
         return string.Join("+", parts);
     }
 

@@ -146,8 +146,7 @@ public partial class App : Application
         switch (action)
         {
             case HotkeyAction.Toggle:
-                _ = Overlay.Toggle().ContinueWith(t =>
-                    MainWindowInstance?.SetOverlaySwitch(t.Result));
+                _ = Overlay.Toggle();
                 break;
             case HotkeyAction.ZoomIn:
                 ApplyZoom(profile.Zoom.Level + profile.Zoom.Step);
